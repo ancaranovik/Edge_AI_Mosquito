@@ -57,11 +57,11 @@ Notebook [04_B_baseline.ipynb](notebooks/04_B_baseline.ipynb) mặc định
 Mở notebook, chọn kernel `.venv`, rồi Run All. PyTorch được pin bản CPU
 trong requirements; không cần cài librosa, torchaudio hoặc torchvision.
 
-Đầu ra smoke: `results/B/smoke/report.html`, cùng `tables/`, `figures/`,
-`models/`. `results/B/report.html` dẫn tới các chế độ đã chạy; cache ở
-`results/B/cache/`. Điểm smoke chỉ để kiểm tra code, không xếp hạng model.
+Đầu ra mới: `results/B/baseline_v1/smoke/report.html`, cùng `tables/`, `figures/`,
+`models/`. Cache ở `results/B/baseline_v1/cache/`. Kết quả smoke trước khi chuyển
+Colab vẫn giữ tại `results/B/smoke/`, không ghi đè. Điểm smoke chỉ để kiểm tra code, không xếp hạng model.
 Huấn luyện đầy đủ chưa được khởi chạy. Khi chủ động muốn chạy đầy đủ,
-đổi `RUN_MODE='full'` trong notebook; đầu ra lưu riêng ở `results/B/full/`.
+đổi `RUN_MODE='full'` trong cell đầu; đầu ra lưu riêng ở `results/B/baseline_v1/full/`.
 Báo cáo metric cấp clip, recall từng loài, tham số và kích thước trọng số.
 Độ trễ/RAM thực tế trên ESP32-S3 cần được đo ở giai đoạn tích hợp thiết bị.
 
@@ -96,6 +96,58 @@ không chép các bản này đè lên notebook mới trong repo.
 
 Đây là gói A_v1 bốn loài, không phải toàn bộ HumBugDB/BioDCASE gốc. Audio
 được lưu ở `data/audio/biodcase_A_v1/`; manifest gốc giữ nguyên đường dẫn
-Windows để bảo toàn checksum. Notebook B hiện dùng cấu hình **local CPU**.
-Trước khi chạy Colab cần thêm mount Drive, ánh xạ đường dẫn và cấu hình
-GPU/môi trường; chỉ đổi kernel hoặc `RUN_MODE` chưa đủ. Chưa khởi chạy full.
+Windows để bảo toàn checksum. Notebook B ánh xạ các tên WAV sang folder trên
+Colab mà không viết lại manifest. Bản Colab đã được bổ sung ngày 21/10/2026;
+archive cũ tiếp tục dùng được, không cần upload lại. Chưa khởi chạy full.
+
+
+## Chạy B trên Colab từ VS Code
+
+1. Pull code mới từ `main` về máy, mở `notebooks/04_B_baseline.ipynb`.
+2. Chọn kernel Colab của tài khoản A, chọn runtime có GPU.
+3. Shortcut Drive mặc định: `/content/drive/MyDrive/Edge_AI_Mosquito`.
+   Folder chứa `A_v1_bundle.zip`; A phải đọc được data và ghi được folder kết quả.
+4. Giữ `RUN_MODE='smoke'`, chạy các cell mục 0 rồi Run All. Cell setup mount
+   Drive A, clone/pull repo trên runtime, copy/kiểm checksum archive, giải nén
+   vào ổ tạm. Không chép lại output B/notebook cũ trong archive lên code mới.
+5. Colab giữ PyTorch CUDA có sẵn, chỉ cài thư viện thiếu; không dùng
+   `pip install -r requirements.txt` bản CPU trong Colab. Local vẫn dùng file đó.
+6. Kiểm tra phần device in ra và report smoke trên runtime. Chỉ khi xác nhận
+   smoke ổn mới chủ động đổi `RUN_MODE='full'` và Run All.
+
+Các tham số người dùng sửa trực tiếp ở cell đầu. Những cell thuật toán được
+đối chiếu với source trên kernel để phát hiện notebook VS Code và code đã pull
+khác nhau. Nếu sửa thuật toán thì save/push code, pull lại và mở bản notebook
+mới; chỉ đổi giá trị ở cell thiết lập không cần commit riêng.
+
+RF/frontend dùng CPU. Neural model dùng GPU khi khả dụng; Colab mặc định dừng
+nếu không có GPU. Recipe B vẫn float32, không AMP/TF32; seed/early stopping,
+frontend, split và tám kiến trúc giữ như đã chốt. Report luôn đo bản sao neural
+trên CPU để so chi phí với RF, có bảng GPU riêng khi chạy CUDA; GPU timing có
+synchronize, không tính copy input CPU→GPU hoặc thu âm.
+
+Checkpoint được lưu sau mỗi epoch về:
+
+```text
+Edge_AI_Mosquito/runs/B/baseline_v1/<smoke|full>/<run_id>/
+  <model>/slot0.zip, slot1.zip, slot0.csv, slot1.csv
+  report/slot0.zip hoặc slot1.zip
+  report.html
+```
+
+Hai snapshot luân phiên cho phép chọn bản trước còn hợp lệ nếu upload mới bị
+ngắt. Khi runtime mới, Run All với cùng code/cấu hình/phiên bản/device để dựng
+lại data/cache và khôi phục từ epoch đã lưu. Epoch dở chạy lại. Không tự ghép
+checkpoint khác GPU/recipe/phiên bản; đổi cấu hình thì đổi `EXPERIMENT_NAME`
+để giữ riêng kết quả. Nếu lỗi lưu Drive, notebook dừng; kiểm tra quyền Editor
+và quota của A. A tạo file mới trong folder B chia sẻ vẫn có thể dùng quota A.
+
+Notebook không tự chạy full/test trong bước chuẩn bị này. Kiểm tra local CPU
+và filesystem giả lập không thay thế smoke CUDA/Drive thật trên Colab.
+
+
+Kiểm tra bản chuyển Colab ngày 21/10/2026: 32 smoke checks và 21 integration
+checks đã PASS trên local CPU/Drive giả lập. Bằng chứng ở
+`results/B/colab_persist_smoke/`; chưa phải kết quả CUDA/Drive thật hoặc full.
+`source_notebook.ipynb` trong report là source repo trên kernel; các giá trị
+thiết lập thực tế (kể cả khi sửa cell đầu) nằm trong `tables/run_settings.csv`.
