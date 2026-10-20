@@ -1,0 +1,25 @@
+# Data, generated results and upload bundle stay on Drive/local storage.
+/data/
+/results/
+/drive_upload/
+
+# Local environment and notebook caches.
+/.venv/
+__pycache__/
+.ipynb_checkpoints/
+*.py[cod]
+*.log
+*.tmp
+
+# Credentials and accidental binary/model exports.
+.env
+.env.*
+*.zip
+*.tar
+*.tar.gz
+*.wav
+*.pt
+*.pth
+*.joblib
+*.npy
+*.npz

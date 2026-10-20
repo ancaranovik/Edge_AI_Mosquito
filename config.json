@@ -1,0 +1,14 @@
+{
+  "dataset": "HumBugDB",
+  "version": "0.0.2",
+  "path_base": "project_root",
+  "audio_dir": "data/raw",
+  "metadata_csv": "data/metadata/humbugdb_zenodo_0_0_2.csv",
+  "inventory": "data/manifests/audio_inventory.jsonl",
+  "results_dir": "results",
+  "biodcase": {
+    "development_dir": "C:/Users/minhl/Downloads/Development_data/Development_data",
+    "evaluation_dir": "C:/Users/minhl/Downloads/Evaluation_data/Evaluation_data",
+    "results_dir": "results/A/biodcase"
+  }
+}

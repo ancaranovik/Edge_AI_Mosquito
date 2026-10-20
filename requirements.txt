@@ -1,0 +1,18 @@
+numpy==2.5.4
+pandas==3.0.6
+scipy==1.18.1
+soundfile==0.13.1
+matplotlib==3.11.2
+seaborn==0.13.2
+nbformat==5.11.1
+nbclient==0.10.4
+nbconvert==7.17.1
+ipykernel==7.4.0
+mistune==3.3.4
+
+# B: pin CPU-only PyTorch; pip install -r requirements.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.1+cpu
+scikit-learn==1.9.1
+joblib==1.6.0
+threadpoolctl==3.7.0
