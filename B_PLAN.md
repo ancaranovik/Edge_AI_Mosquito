@@ -258,3 +258,42 @@ Trạng thái kiểm tra: **đã hoàn tất trên local CPU và filesystem Driv
 Đã giải nén thực và xác minh 3.032 file data/A trong bundle (2.905 WAV), lặp setup dùng lại file có hash đúng; không giải nén code/checkpoint B cũ. Toàn bộ metric smoke và số tham số/MAC giữ nguyên so với bản tám baseline local trước chuyển Colab. 213 file dữ liệu/A/notebook01–03/requirements/kết quả B cũ được đối chiếu hash không đổi. Không chạy full hoặc test scoring. Report headless có sáu hình tải đủ, không lỗi JS/tràn ngang. Bằng chứng local tại `results/B/colab_persist_smoke/smoke/report.html` và `results/B/colab_persist_smoke/integration_checks.csv`; kết quả này không được gọi là GPU/Drive thật.
 
 Không có GPU/Drive thật trong môi trường local này; cần người dùng chạy smoke trên runtime Colab sau khi pull code. Archive đã upload giữ nguyên SHA256, không cần upload lại. `source_notebook.ipynb` là snapshot source trên kernel; tham số người dùng thay ở cell đầu được ghi thực tế trong `tables/run_settings.csv`, không suy ra từ giá trị mặc định trong snapshot repo.
+
+
+## 16. Sửa nạp waveform và tiếp tục lượt full ngày 21/10/2026
+
+Người dùng đã chạy smoke Colab và bắt đầu full. Sau Small CNN, DS-CNN,
+TC-ResNet8 và CNN-LSTM, CNN 1D không hiện tiến độ trong thời gian dài.
+Nguyên nhân trong code: mỗi window ngẫu nhiên đọc/hash/giải mã cả WAV,
+trong khi LRU chỉ giữ bốn clip. Log epoch lại nằm sau train, validation và
+lưu Drive. Mô phỏng thứ tự shuffle trên train cho 96,65% cache miss; đây là
+mô phỏng I/O, không phải đo tốc độ GPU.
+
+Sửa notebook 04: cache đúng waveform float32 2.400 sample/window theo clip
+trên ổ tạm; loader shuffle đọc memmap, chuẩn hóa như trước. Có inventory,
+hash, kiểm shape/finite, ghi file tạm và đóng mapping cả khi bị Interrupt.
+Thêm log train theo batch, validation và trạng thái ghi Drive. Giữ nguyên
+kiến trúc, loss, optimizer, learning rate, seed, sampling và early stopping.
+
+Run mới ở `results/B/<experiment>/<mode>/io_v2/`, Drive vẫn theo run ID.
+Run ID phản ánh source mới; không giả source SHA cũ. Chỉ khi source hiện tại
+khớp entry tương thích của notebook mới tính run ID tiền nhiệm `6f72a9e`
+bằng đúng cấu hình/selection/versions/GPU. Checkpoint local hoặc snapshot
+Drive hợp lệ được nhập sang run mới, giữ trọng số/optimizer/RNG/lịch sử;
+checkpoint gốc giữ nguyên. Chuyển source khác không tự nhận tương thích.
+Không nhập kết quả hoặc model của project Wingbeat cũ.
+
+Kiểm chứng: toàn bộ 53.789 window train/validation có waveform và input
+chuẩn hóa giống loader cũ đến từng sample. Final notebook smoke: tám
+baseline, bảy neural hai epoch/bốn update, 34 kiểm tra PASS. 20 integration
+checks trên CPU/Drive mô phỏng kiểm tra nhập bốn model đã hoàn tất và RF,
+CNN 1D dở, loader không đọc WAV trong training, cùng input/shuffle,
+trọng số/loss/F1/xác suất sau resume giống lượt liên tục, remote-only restore,
+fallback snapshot và lỗi ghi Drive. Tám kiểm tra cuối bổ sung inventory
+hỏng, Interrupt khi tạo cache rồi chạy lại, và resume đúng bản source cuối.
+Chưa chạy CUDA/Drive thật trong môi trường kiểm chứng local này.
+
+Bằng chứng local: `results/B/io_fix_preflight/full_waveform_equivalence.csv`,
+`results/B/io_fix_integration_checks.csv`, `results/B/io_fix_final_checks.csv`
+và `results/B/io_fix_smoke_final/smoke/io_v2/report.html`. Không khởi chạy
+full thay người dùng và không đọc/đánh giá audio test.

@@ -57,12 +57,26 @@ Notebook [04_B_baseline.ipynb](notebooks/04_B_baseline.ipynb) mặc định
 Mở notebook, chọn kernel `.venv`, rồi Run All. PyTorch được pin bản CPU
 trong requirements; không cần cài librosa, torchaudio hoặc torchvision.
 
-Đầu ra mới: `results/B/baseline_v1/smoke/report.html`, cùng `tables/`, `figures/`,
+Đầu ra mới: `results/B/baseline_v1/smoke/io_v2/report.html`, cùng `tables/`, `figures/`,
 `models/`. Cache ở `results/B/baseline_v1/cache/`. Kết quả smoke trước khi chuyển
 Colab vẫn giữ tại `results/B/smoke/`, không ghi đè. Điểm smoke chỉ để kiểm tra code, không xếp hạng model.
 Huấn luyện đầy đủ chưa được khởi chạy. Khi chủ động muốn chạy đầy đủ,
-đổi `RUN_MODE='full'` trong cell đầu; đầu ra lưu riêng ở `results/B/baseline_v1/full/`.
+đổi `RUN_MODE='full'` trong cell đầu; đầu ra lưu riêng ở `results/B/baseline_v1/full/io_v2/`.
 Báo cáo metric cấp clip, recall từng loài, tham số và kích thước trọng số.
+
+CNN 1D dùng waveform cache float32 trên ổ tạm (khoảng 493 MiB cho full), tạo
+một lần theo thứ tự clip. Training shuffle chỉ đọc window 300 ms từ cache;
+mean/std, nhãn, thứ tự lấy mẫu, kiến trúc và optimizer giữ cùng định nghĩa.
+Có log batch train/validation và trước/sau ghi Drive. Cache được kiểm hash,
+shape và tính hữu hạn; cache dở/hỏng được tạo lại.
+
+Bản `io_v2` có run ID mới. Notebook chỉ nhập checkpoint của bản `6f72a9e`
+đã xác minh với cùng dữ liệu/recipe/GPU/phiên bản. Bản gốc được giữ nguyên;
+nguồn nhập ghi trong `tables/runtime_io.csv` và `persistence_events.csv`.
+Để tiếp tục lượt full đang chạy: Interrupt cell, giữ runtime/GPU, mở notebook
+mới, giữ `RUN_MODE='full'` và `EXPERIMENT_NAME='baseline_v1'`, rồi Run All.
+Các model đã hoàn tất sẽ được nạp lại; epoch đang dở chạy lại từ đầu.
+
 Độ trễ/RAM thực tế trên ESP32-S3 cần được đo ở giai đoạn tích hợp thiết bị.
 
 MicroDSC-style tham khảo [Kazeneza et al. (2026)](https://doi.org/10.7717/peerj-cs.3925)
