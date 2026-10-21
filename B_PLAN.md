@@ -10,7 +10,8 @@
 > recipe nhưng khởi tạo từ đầu, fit normalization trên train mới. Kết quả
 > A_v2 ở `results/A_v2/`, Drive `runs/A_v2/B/baseline/`. 05–06 là chẩn đoán
 > A_v1, không tính là đã hoàn tất cải tiến C/D cho A_v2. Upload gói
-> `A_v2_metadata.zip` cạnh `A_v1_bundle.zip`, không upload lại audio. Trạng thái
+> folder `A_v2_update` cạnh `A_v1_bundle.zip`; notebook đọc
+> `A_v2_update/A_v2_metadata.zip`, không upload lại audio. Trạng thái
 > smoke/full trong các mục lịch sử bên dưới áp dụng ở thời điểm ghi.
 > Hướng dẫn hiện tại nằm trong README.
 

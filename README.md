@@ -58,8 +58,9 @@ SHA256SUMS.txt        Checksum gói bổ sung
 UPLOAD.txt           Cách upload và chạy
 ```
 
-1. Upload **chỉ `A_v2_metadata.zip`** vào folder `Edge_AI_Mosquito` trên Drive B,
-   đặt cạnh `A_v1_bundle.zip`. Không giải nén trên Drive.
+1. Upload **folder `A_v2_update`** vào folder `Edge_AI_Mosquito` trên Drive B,
+   đặt cạnh `A_v1_bundle.zip`. Notebook đọc `A_v2_update/A_v2_metadata.zip`;
+   các file checksum/hướng dẫn v2 giữ trong folder đó. Không giải nén trên Drive.
 2. Colab tài khoản A tiếp tục dùng shortcut
    `/content/drive/MyDrive/Edge_AI_Mosquito`.
 3. Cập nhật code repo `https://github.com/ancaranovik/Edge_AI_Mosquito` trước
