@@ -1,5 +1,19 @@
 # B — Baseline trên A_v1
 
+> **Cập nhật tổ chức A_v1/A_v2 — 21/10/2026:** Nội dung bên dưới là kế hoạch
+> và lịch sử A_v1. Notebook 03–06 hiện nằm trong `notebooks/A_v1/`, giữ output
+> đã chạy; 01–02 dùng chung ở ngoài. A_v2 có `notebooks/A_v2/03_A_data_preparation.ipynb`
+> và `04_B_baseline.ipynb`: chia pool 1.374 albopictus D5 thành 1.099 train /
+> 275 validation theo nhóm đã phát hiện (seed 42), chuyển D1 thành diagnostic,
+> giữ test và split ba loài khác. D5 chưa xác minh độc lập phiên thu/cá thể;
+> vẫn có confounding domain D5 và nhãn albopictus. Tám baseline giữ kiến trúc/
+> recipe nhưng khởi tạo từ đầu, fit normalization trên train mới. Kết quả
+> A_v2 ở `results/A_v2/`, Drive `runs/A_v2/B/baseline/`. 05–06 là chẩn đoán
+> A_v1, không tính là đã hoàn tất cải tiến C/D cho A_v2. Upload gói
+> `A_v2_metadata.zip` cạnh `A_v1_bundle.zip`, không upload lại audio. Trạng thái
+> smoke/full trong các mục lịch sử bên dưới áp dụng ở thời điểm ghi.
+> Hướng dẫn hiện tại nằm trong README.
+
 Ngày ghi: 20/10/2026. **Đã duyệt: code + cài phụ thuộc + kiểm tra nhỏ. Đã triển khai notebook B và chạy smoke; chưa chạy baseline đầy đủ.**
 
 File này giữ các quyết định và đề xuất cho phần B để tiếp tục công việc không mất context. Phạm vi B ở đây thay đề xuất ban đầu chỉ có logistic regression và CNN nhỏ; không thay đổi dữ liệu hay protocol A_v1 đã khóa.
