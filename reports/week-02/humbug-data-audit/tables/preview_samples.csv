@@ -1,0 +1,7 @@
+﻿id,species,name,sample_rate,clip_seconds,preview_start_seconds,preview_seconds
+219,an albimanus,CDC_An-albimanus_labelled_800.wav,8000,0.18425000000000002,0.0,0.18425
+221292,an gambiae sl,IFA_47_19_1859.wav,44100,20.48,7.74,5.0
+219945,an gambiae ss,r2016-07-26_11.00.27.707.wav_u2016-07-26_13.01.09.587880.wav,8000,3.199875,0.0,3.199875
+413,an minimus,CDC_An-minimus_labelled_800.wav,8000,0.08175,0.0,0.08175
+497,an sinensis,CDC_An-sinensis_labelled_800.wav,8000,0.05725,0.0,0.05725
+1698,culex quinquefasciatus,R4_cleaned recording_TEL_25-10-17.wav,44100,13.182630385487528,4.091315192743764,5.0

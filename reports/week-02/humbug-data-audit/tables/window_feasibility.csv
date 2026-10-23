@@ -1,0 +1,191 @@
+﻿species,clips,eligible_clips,windows_50pct_overlap,window_seconds,eligible_pct
+ae aegypti,123,121,26460,0.1,98.3739837398374
+ae albopictus,79,79,717,0.1,100.0
+an albimanus,55,55,150,0.1,100.0
+an arabiensis,1985,1985,376059,0.1,100.0
+an atroparvus,13,8,28,0.1,61.53846153846154
+an barbirostris,10,10,1742,0.1,100.0
+an coluzzii,14,11,2804,0.1,78.57142857142857
+an coustani,92,92,22687,0.1,100.0
+an dirus,129,128,18094,0.1,99.2248062015504
+an farauti,13,3,3,0.1,23.076923076923077
+an freeborni,52,27,45,0.1,51.92307692307693
+an funestus,18,7,12,0.1,38.88888888888889
+an funestus sl,104,104,30694,0.1,100.0
+an funestus ss,381,381,147754,0.1,100.0
+an gambiae,39,29,1784,0.1,74.35897435897436
+an gambiae sl,42,42,8078,0.1,100.0
+an gambiae ss,737,737,48452,0.1,100.0
+an harrisoni,124,124,19419,0.1,100.0
+an leesoni,3,3,865,0.1,100.0
+an maculatus,117,117,16429,0.1,100.0
+an maculipalpis,79,79,40150,0.1,100.0
+an merus,4,3,22,0.1,75.0
+an minimus,20,14,1230,0.1,70.0
+an pharoensis,3,3,1121,0.1,100.0
+an quadriannulatus,70,66,217,0.1,94.28571428571428
+an rivulorum,1,1,101,0.1,100.0
+an sinensis,11,4,4,0.1,36.36363636363637
+an squamosus,141,141,41648,0.1,100.0
+an stephensi,45,33,1329,0.1,73.33333333333333
+an ziemanni,9,9,2187,0.1,100.0
+coquillettidia sp,2,2,509,0.1,100.0
+culex pipiens complex,545,545,162398,0.1,100.0
+culex quinquefasciatus,672,672,147304,0.1,100.0
+culex tarsalis,39,36,154,0.1,92.3076923076923
+culex tigripes,18,18,3149,0.1,100.0
+ma africanus,78,78,15602,0.1,100.0
+ma uniformis,131,131,32910,0.1,100.0
+toxorhynchites brevipalpis,4,4,1688,0.1,100.0
+ae aegypti,123,101,8718,0.3,82.11382113821138
+ae albopictus,79,67,164,0.3,84.81012658227847
+an albimanus,55,9,12,0.3,16.363636363636363
+an arabiensis,1985,1984,123843,0.3,99.94962216624685
+an atroparvus,13,2,3,0.3,15.384615384615385
+an barbirostris,10,10,571,0.3,100.0
+an coluzzii,14,5,925,0.3,35.714285714285715
+an coustani,92,92,7486,0.3,100.0
+an dirus,129,115,5907,0.3,89.14728682170544
+an farauti,13,0,0,0.3,0.0
+an freeborni,52,1,1,0.3,1.9230769230769231
+an funestus,18,1,1,0.3,5.555555555555555
+an funestus sl,104,104,10138,0.3,100.0
+an funestus ss,381,381,48898,0.3,100.0
+an gambiae,39,6,580,0.3,15.384615384615385
+an gambiae sl,42,42,2658,0.3,100.0
+an gambiae ss,737,735,15420,0.3,99.72862957937585
+an harrisoni,124,124,6343,0.3,100.0
+an leesoni,3,3,286,0.3,100.0
+an maculatus,117,117,5358,0.3,100.0
+an maculipalpis,79,79,13309,0.3,100.0
+an merus,4,3,4,0.3,75.0
+an minimus,20,9,399,0.3,45.0
+an pharoensis,3,3,371,0.3,100.0
+an quadriannulatus,70,15,24,0.3,21.428571428571427
+an rivulorum,1,1,33,0.3,100.0
+an sinensis,11,0,0,0.3,0.0
+an squamosus,141,141,13760,0.3,100.0
+an stephensi,45,8,420,0.3,17.77777777777778
+an ziemanni,9,9,722,0.3,100.0
+coquillettidia sp,2,2,168,0.3,100.0
+culex pipiens complex,545,545,53655,0.3,100.0
+culex quinquefasciatus,672,669,48435,0.3,99.55357142857143
+culex tarsalis,39,10,23,0.3,25.64102564102564
+culex tigripes,18,18,1036,0.3,100.0
+ma africanus,78,78,5137,0.3,100.0
+ma uniformis,131,131,10861,0.3,100.0
+toxorhynchites brevipalpis,4,4,558,0.3,100.0
+ae aegypti,123,90,4107,0.625,73.17073170731707
+ae albopictus,79,20,29,0.625,25.31645569620253
+an albimanus,55,0,0,0.625,0.0
+an arabiensis,1985,1984,57939,0.625,99.94962216624685
+an atroparvus,13,0,0,0.625,0.0
+an barbirostris,10,10,265,0.625,100.0
+an coluzzii,14,5,441,0.625,35.714285714285715
+an coustani,92,92,3517,0.625,100.0
+an dirus,129,110,2746,0.625,85.27131782945736
+an farauti,13,0,0,0.625,0.0
+an freeborni,52,0,0,0.625,0.0
+an funestus,18,0,0,0.625,0.0
+an funestus sl,104,104,4780,0.625,100.0
+an funestus ss,381,381,23161,0.625,100.0
+an gambiae,39,6,273,0.625,15.384615384615385
+an gambiae sl,42,42,1242,0.625,100.0
+an gambiae ss,737,707,6827,0.625,95.92944369063771
+an harrisoni,124,124,2950,0.625,100.0
+an leesoni,3,3,135,0.625,100.0
+an maculatus,117,117,2483,0.625,100.0
+an maculipalpis,79,79,6326,0.625,100.0
+an merus,4,0,0,0.625,0.0
+an minimus,20,8,185,0.625,40.0
+an pharoensis,3,3,176,0.625,100.0
+an quadriannulatus,70,1,1,0.625,1.4285714285714286
+an rivulorum,1,1,15,0.625,100.0
+an sinensis,11,0,0,0.625,0.0
+an squamosus,141,141,6492,0.625,100.0
+an stephensi,45,6,196,0.625,13.333333333333334
+an ziemanni,9,9,338,0.625,100.0
+coquillettidia sp,2,2,79,0.625,100.0
+culex pipiens complex,545,545,25318,0.625,100.0
+culex quinquefasciatus,672,667,22722,0.625,99.25595238095238
+culex tarsalis,39,2,4,0.625,5.128205128205128
+culex tigripes,18,18,484,0.625,100.0
+ma africanus,78,78,2405,0.625,100.0
+ma uniformis,131,131,5109,0.625,100.0
+toxorhynchites brevipalpis,4,4,265,0.625,100.0
+ae aegypti,123,89,2525,1.0,72.35772357723577
+ae albopictus,79,4,7,1.0,5.063291139240507
+an albimanus,55,0,0,1.0,0.0
+an arabiensis,1985,1984,35367,1.0,99.94962216624685
+an atroparvus,13,0,0,1.0,0.0
+an barbirostris,10,10,159,1.0,100.0
+an coluzzii,14,5,273,1.0,35.714285714285715
+an coustani,92,92,2156,1.0,100.0
+an dirus,129,108,1654,1.0,83.72093023255815
+an farauti,13,0,0,1.0,0.0
+an freeborni,52,0,0,1.0,0.0
+an funestus,18,0,0,1.0,0.0
+an funestus sl,104,104,2940,1.0,100.0
+an funestus ss,381,381,14289,1.0,100.0
+an gambiae,39,5,168,1.0,12.82051282051282
+an gambiae sl,42,42,758,1.0,100.0
+an gambiae ss,737,641,3898,1.0,86.97421981004071
+an harrisoni,124,124,1775,1.0,100.0
+an leesoni,3,3,83,1.0,100.0
+an maculatus,117,115,1488,1.0,98.29059829059828
+an maculipalpis,79,79,3909,1.0,100.0
+an merus,4,0,0,1.0,0.0
+an minimus,20,8,111,1.0,40.0
+an pharoensis,3,3,108,1.0,100.0
+an quadriannulatus,70,0,0,1.0,0.0
+an rivulorum,1,1,9,1.0,100.0
+an sinensis,11,0,0,1.0,0.0
+an squamosus,141,141,3992,1.0,100.0
+an stephensi,45,5,119,1.0,11.11111111111111
+an ziemanni,9,9,207,1.0,100.0
+coquillettidia sp,2,2,48,1.0,100.0
+culex pipiens complex,545,545,15569,1.0,100.0
+culex quinquefasciatus,672,661,13831,1.0,98.36309523809523
+culex tarsalis,39,1,2,1.0,2.564102564102564
+culex tigripes,18,18,293,1.0,100.0
+ma africanus,78,78,1469,1.0,100.0
+ma uniformis,131,131,3131,1.0,100.0
+toxorhynchites brevipalpis,4,4,164,1.0,100.0
+ae aegypti,123,89,1194,2.0,72.35772357723577
+ae albopictus,79,1,1,2.0,1.2658227848101267
+an albimanus,55,0,0,2.0,0.0
+an arabiensis,1985,1984,15994,2.0,99.94962216624685
+an atroparvus,13,0,0,2.0,0.0
+an barbirostris,10,10,73,2.0,100.0
+an coluzzii,14,5,133,2.0,35.714285714285715
+an coustani,92,92,1004,2.0,100.0
+an dirus,129,107,744,2.0,82.94573643410853
+an farauti,13,0,0,2.0,0.0
+an freeborni,52,0,0,2.0,0.0
+an funestus,18,0,0,2.0,0.0
+an funestus sl,104,104,1388,2.0,100.0
+an funestus ss,381,381,6854,2.0,100.0
+an gambiae,39,5,80,2.0,12.82051282051282
+an gambiae sl,42,42,346,2.0,100.0
+an gambiae ss,737,460,1481,2.0,62.41519674355496
+an harrisoni,124,122,796,2.0,98.38709677419355
+an leesoni,3,3,39,2.0,100.0
+an maculatus,117,110,664,2.0,94.01709401709401
+an maculipalpis,79,79,1895,2.0,100.0
+an merus,4,0,0,2.0,0.0
+an minimus,20,7,49,2.0,35.0
+an pharoensis,3,3,52,2.0,100.0
+an quadriannulatus,70,0,0,2.0,0.0
+an rivulorum,1,1,4,2.0,100.0
+an sinensis,11,0,0,2.0,0.0
+an squamosus,141,141,1883,2.0,100.0
+an stephensi,45,5,56,2.0,11.11111111111111
+an ziemanni,9,9,98,2.0,100.0
+coquillettidia sp,2,2,23,2.0,100.0
+culex pipiens complex,545,545,7366,2.0,100.0
+culex quinquefasciatus,672,640,6417,2.0,95.23809523809523
+culex tarsalis,39,0,0,2.0,0.0
+culex tigripes,18,18,132,2.0,100.0
+ma africanus,78,78,671,2.0,100.0
+ma uniformis,131,131,1461,2.0,100.0
+toxorhynchites brevipalpis,4,4,78,2.0,100.0
