@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Week 3 · BioDCASE Data Inspection and Baseline Design</title><style>body{font:17px/1.7 system-ui,sans-serif;color:#20313e;max-width:1100px;margin:40px auto;padding:0 24px}h1,h2{color:#245579}h1{margin-top:44px}table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow:auto}th,td{border:1px solid #d8e0e5;padding:9px;text-align:left}th{background:#edf3f6}img{max-width:100%;height:auto}a{color:#245579}aside{padding:20px;background:#edf3f6}p{max-width:100%}</style></head><body><nav><a href="../../../">← Report archive</a></nav><header><p>VGU · Edge AI · Weekly Progress Report</p><h1>Week 3 — BioDCASE Data Inspection and Baseline Design</h1><aside>This report reviews the BioDCASE development release and establishes the data and modelling decisions for Part B. The local inventory confirms the archive structure while identifying dominant-domain imbalance, duplicate content, incomplete provenance, and a duration discrepancy. A four-species exploratory protocol uses 300 ms inputs and eight learned baselines with a shared training recipe. The report documents why these choices are feasible and which independence and deployment claims remain unsupported.</aside></header><h1>From HumBug Review to the BioDCASE Dataset</h1>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Week 3 · BioDCASE Data Inspection and Baseline Design</title><style>body{font:17px/1.7 system-ui,sans-serif;color:#20313e;max-width:1100px;margin:40px auto;padding:0 24px}h1,h2{color:#245579}h1{margin-top:44px}table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow:auto}th,td{border:1px solid #d8e0e5;padding:9px;text-align:left}th{background:#edf3f6}img{max-width:100%;height:auto}a{color:#245579}aside{padding:20px;background:#edf3f6}p{max-width:100%}</style></head><body><nav><a href="../../../">← Report archive</a></nav><header><p>VGU · Edge AI · Weekly Progress Report</p><h1>Week 3 — BioDCASE Data Inspection and Baseline Design</h1><aside><p>This report reviews the BioDCASE development release and establishes the data and modelling decisions for Part B. The local inventory confirms the archive structure while identifying dominant-domain imbalance, duplicate content, incomplete provenance, and a duration discrepancy. A four-species exploratory protocol uses 300 ms inputs and eight learned baselines with a shared training recipe. The report documents why these choices are feasible and which independence and deployment claims remain unsupported.</p><p>The development inventory contains 271,380 clips, of which approximately 97.9 percent belong to D5. Exact duplicate content crosses original partitions despite disjoint file IDs. The retained A_v1 protocol contains 1,879 eligible training clips and 211 validation clips, yielding 41,837 and 11,952 windows respectively. Albopictus is supplemented from D5 but its D1 validation examples have only one known source proxy. These observations motivate separate reporting of class balance, domain coverage, and source support.</p><p>Part B compares a spectral random forest with seven neural architectures using fixed window definitions and validation clip macro-F1 for selection. The discussion explains representation choices, natural-window imbalance, bounded overlap screening, and the limits of model-size estimates. No independent-individual, globally unseen-domain, or target-microphone performance is claimed.</p></aside></header><h1>From HumBug Review to the BioDCASE Dataset</h1>
 <p>The third reporting stage examines whether BioDCASE provides a workable basis for rebuilding the mosquito-classification experiment. Week 2 established that the number of audio clips alone is an inadequate selection criterion: recording support, biological metadata, duration, and acquisition conditions also matter. BioDCASE offers explicit species and domain identifiers and a substantially larger development pool, but those advantages require an audit of what the released partitions actually contain.</p>
 <p>This report documents the local inventory, the selection of a four-species exploratory task, the preparation of short acoustic inputs, and the design of Part B. It concerns dataset preparation and the baseline recipe. The training outcomes and the subsequent change in the albopictus validation domain are reserved for Week 4. The weekly sequence groups the work thematically; it does not assign unverified calendar periods to the saved experiments.</p>
 <h2>Release identity and evaluation boundaries</h2>
@@ -8,6 +8,7 @@
 <h1>Inventory Findings and Their Consequences</h1>
 <h2>Scale does not imply balanced domain coverage</h2>
 <p>The distribution is dominated by D5. It contributes 265,652 of the 271,380 development clips, approximately 97.9%. The remaining four domains together contribute only 5,728 clips. A random split stratified by species can consequently preserve a highly unequal mixture of acquisition conditions. A high pooled score may principally describe performance on the dominant source.</p>
+<p><strong>Official development partitions by acquisition domain.</strong></p>
 <table class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -60,6 +61,7 @@
 <p><a href="tables/domain_table.csv">Download table</a></p>
 <p><img loading="lazy" src="images/domain_counts.png" alt="Development clips by domain. The logarithmic axis makes the smaller domains visible; the numerical labels retain the actual scale." /></p>
 <p>The imbalance also occurs within species. In the official training pool, aegypti has 64,251 clips and albopictus 14,582, compared with 76 dirus and 395 minimus. These are release-training counts before the custom preparation policy. They must not be substituted for the retained training counts in Part B.</p>
+<p><strong>Candidate-label statistics in the official training pool, before custom preparation.</strong></p>
 <table class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -109,6 +111,104 @@
 <p>Twenty byte-duplicate groups are present, of which eighteen cross an original development split. One duplicate group has conflicting species assignments across four clips. These findings distinguish two problems: repeated signal can compromise an independence assumption, while identical signal with incompatible labels requires a label-conflict policy. An archive checksum can establish download integrity without resolving either problem.</p>
 <p>There are 3,664 BioDCASE clips matching HumBug files both by byte identity and decoded PCM identity. These matches provide useful links to richer source metadata, but they do not make the two datasets independent corroborating collections. They also cover only part of BioDCASE. Source metadata are transferred only through an established match, not inferred for unrelated clips with similar filenames or spectra.</p>
 <p>Gender is unavailable in the supplied BioDCASE metadata. For unmapped domains, including D5, the project does not certify a microphone-only sensor origin or verified individual/session identifiers. This limits biological and deployment claims even when species and domain labels are available. The current task is consequently an exploratory labelled-signal benchmark.</p>
+<h1>A Closer Audit of the Data Representation</h1>
+<h2>File identity, signal identity, and recording identity</h2>
+<p>The inventory has several levels of evidence that should not be collapsed into a single pass/fail result. An ID check establishes that every listed item has a corresponding file and that the intended partitions can be reconstructed. A byte hash establishes whether two complete stored files are identical. A decoded-PCM comparison asks whether their sample content is identical despite possible container differences. A partial-waveform comparison addresses shifted or overlapping excerpts. Recording identity is a further question: two different waveforms can still originate from the same individual or session.</p>
+<p>In this dataset, all official ID checks pass. There are no missing WAV files, repeated IDs within a listed partition, or shared IDs between the released train, validation, and test lists. The trainval IDs also equal the union of the released training and validation IDs. Nevertheless, duplicate audio is present across those partitions. This is a concrete example of why an ID-disjoint split can remain content-dependent.</p>
+<p>The source-matching stage adds a different kind of information. A matched original HumBug name can connect excerpts that have different BioDCASE IDs. In the selected pool, the original partitions separate 79 albopictus clips associated with the same CDC source name across train, validation, and test. That source name is therefore useful for grouping, even though it does not establish how many mosquitoes were present in the original recording. Treating all 79 clips as independent observations would conflate segmentation with new recording support.</p>
+<p>The preparation consequently preserves both the original split as a reference and the research split as an explicit design decision. This is necessary for reproducibility: a reader should be able to distinguish an exclusion caused by a label conflict from a reassignment caused by source grouping. It also prevents later results from being inadvertently described as performance on the released benchmark partition.</p>
+<h2>Audio-format heterogeneity</h2>
+<p>All development files are mono, but sample rate and encoding vary. The dominant format is 8 kHz PCM16, with 267,589 clips. Other files use 8 kHz PCM24, 44.1 kHz PCM16 or PCM24, 48 kHz PCM16, and a small number of 8 kHz DOUBLE files. These differences matter even before model training because the same nominal duration can correspond to different numbers of stored samples and different quantization properties.</p>
+<p><strong>Audio formats in the local development inventory.</strong></p>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Sample rate Hz</th>
+      <th>Encoding</th>
+      <th>Clips</th>
+      <th>Hours</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>8,000</td>
+      <td>DOUBLE</td>
+      <td>25</td>
+      <td>0.00</td>
+    </tr>
+    <tr>
+      <td>8,000</td>
+      <td>PCM_16</td>
+      <td>267,589</td>
+      <td>50.11</td>
+    </tr>
+    <tr>
+      <td>8,000</td>
+      <td>PCM_24</td>
+      <td>2,006</td>
+      <td>1.93</td>
+    </tr>
+    <tr>
+      <td>44,100</td>
+      <td>PCM_16</td>
+      <td>91</td>
+      <td>1.37</td>
+    </tr>
+    <tr>
+      <td>44,100</td>
+      <td>PCM_24</td>
+      <td>1,658</td>
+      <td>6.67</td>
+    </tr>
+    <tr>
+      <td>48,000</td>
+      <td>PCM_16</td>
+      <td>11</td>
+      <td>0.21</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><a href="tables/formats_table.csv">Download table</a></p>
+<p>Resampling to a common 8 kHz representation makes the window length and frontend frequency axis consistent. It does not make the source recordings equivalent. Differences in sensor bandwidth, acquisition gain, original filtering, and noise may remain after resampling. Likewise, converting samples to floating point gives a common numerical interface without calibrating sound pressure level.</p>
+<p>The 4 kHz upper analysis limit follows the chosen 8 kHz input. It is an engineering scope decision for this baseline, not a biological claim that all informative mosquito sound lies below 4 kHz. Any later change in sample rate should be assessed together with input cost and acquisition conditions rather than being interpreted solely as an architectural modification.</p>
+<h2>Reconciling duration without changing the source data</h2>
+<p>The initial survey retains an unresolved discrepancy between the published duration and the local header-derived duration. The later preparation table provides a partial arithmetic explanation. D5 contains 265,652 clips of 0.625 s each. Multiplying the count by a rounded 0.63 s instead gives 167,360.76 s, whereas the measured D5 total is 166,032.50 s. The rounding difference accounts for 1,328.26 s of the overall 1,370.43 s discrepancy.</p>
+<p><strong>Partial reconciliation of published and measured development duration.</strong></p>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Quantity</th>
+      <th>Seconds</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Published development total</td>
+      <td>218,388.40</td>
+    </tr>
+    <tr>
+      <td>Local header-derived total</td>
+      <td>217,017.97</td>
+    </tr>
+    <tr>
+      <td>Overall difference</td>
+      <td>1,370.43</td>
+    </tr>
+    <tr>
+      <td>D5 rounding contribution</td>
+      <td>1,328.26</td>
+    </tr>
+    <tr>
+      <td>Remaining difference</td>
+      <td>42.17</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><a href="tables/duration_table.csv">Download table</a></p>
+<p>The remaining difference is approximately 42.17 s. This calculation explains most of the discrepancy but does not establish that every published duration difference has been reconciled. The original audit flag should therefore remain visible. The practical resolution is to calculate actual input windows from measured sample counts and to identify the population behind every reported duration.</p>
+<p>No audio needs to be altered to make these totals agree. Rounding a reporting value and measuring a signal are different operations. The relevant question for the frontend is whether the measured number of samples supports a complete window, not whether the clip's nominal duration matches a rounded table entry.</p>
 <h1>Selecting a Four-Species Experiment</h1>
 <h2>A deliberately bounded scope</h2>
 <p>The retained labels are Aedes aegypti, Aedes albopictus, Anopheles dirus, and Anopheles minimus. The base pool uses D1–D4, with a controlled supplement of 1,374 albopictus clips sampled from the original D5 training pool using seed 42. This avoids allowing the complete D5 majority to determine the size of the study, while retaining enough albopictus training examples for an initial experiment.</p>
@@ -120,6 +220,7 @@
 <h2>Partition design before generating windows</h2>
 <p>The A_v1 test domains are class-conditional: aegypti D3, albopictus D2, dirus D4, and minimus D2. Groups with known links inherit a common assignment. The remaining eligible groups are divided using seed 42, with a target of 20% validation groups and at least ten eligible validation clips where feasible. D5 albopictus is training-only in A_v1.</p>
 <p>This is not a globally unseen-domain design. A domain held out for one species can appear in training for another. For albopictus specifically, A_v1 creates the D5-to-D1 train–validation contrast that later exposes a complete recall failure. That contrast should be described precisely rather than generalized to every species or to the entire benchmark.</p>
+<p><strong>Eligible clips and complete windows in the custom A_v1 training and validation partitions.</strong></p>
 <table class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -183,13 +284,123 @@
 
 <p><a href="tables/split_table.csv">Download table</a></p>
 <p>The table counts only clips eligible for a complete 300 ms window. Some retained clips are shorter and remain documented separately. Training and validation contain 1,879 and 211 eligible clips respectively, producing 41,837 and 11,952 windows. The custom test population contains 748 eligible clips and 59,688 windows and is not scored in Part B.</p>
+<h1>Selection Decisions at the Level of Each Species</h1>
+<h2>Aedes aegypti: abundant clips with a dominant acquisition source</h2>
+<p>The full training release offers a very large aegypti population, but most of it is D5. Restricting the base experiment to D1–D4 reduces that numerical dominance and makes the retained acquisition conditions more visible. In A_v1, eligible training and validation clips occur in D1 and D4, with D3 held for the custom test. The retained training population has 95 eligible clips and 15,592 windows, while validation has 28 clips and 4,681 windows.</p>
+<p>This design allows an initial within-domain validation comparison for this species before a later class-conditional domain holdout. It does not provide a broad independent-source validation: the counted groups are evidence-based proxies, and some retained clips still lack verified provenance. Aegypti's large release-wide count should therefore not be used as evidence that the selected research population is equally diverse.</p>
+<h2>Aedes albopictus: a training supplement with a narrow validation base</h2>
+<p>Albopictus creates the most difficult compromise in the chosen four-class design. The base-domain pool does not offer a large, well-supported training population after the desired grouping and holdout constraints. The fixed supplement of 1,374 D5 clips supplies 4,122 complete windows. Those clips are selected from the original training pool, and the supplement outcome table confirms that all 1,374 are retained.</p>
+<p>However, increasing the number of D5 training clips cannot create a second independent D1 validation source. The 67 eligible D1 validation clips are associated with one known source proxy. They are useful for observing a particular transfer problem, but insufficient for treating the result as a population-wide estimate of cross-domain albopictus recognition. This limitation is part of the experiment's design, before any model score is inspected.</p>
+<h2>Anopheles dirus: limited support and a modest model-development set</h2>
+<p>Dirus has 63 eligible training clips and 24 validation clips in the custom preparation, producing 3,669 and 1,184 windows respectively. Both populations use D1, while D4 supplies the later test population. Validation has eight evidence groups. A high validation score would therefore first establish performance on this restricted D1 setting, not robustness across all acquisition conditions.</p>
+<p>Dirus also has the smallest training-window contribution among the four labels. Its scarcity motivates monitoring per-class recall and avoiding a comparison based only on total accuracy. At the same time, simply weighting dirus more heavily cannot add missing sources or remove relationships between clips. Training imbalance and evaluation independence require separate responses.</p>
+<h2>Anopheles minimus: fewer clips can still dominate window sampling</h2>
+<p>Minimus has 347 eligible training clips, substantially fewer than albopictus, yet supplies 18,454 training windows. It is represented in D1, D3, and D4; the selected D4 recordings are relatively long. The split-design review records that D4 contributes approximately 79.76% of minimus training windows. Thus even a multi-domain class can have its effective training input dominated by one domain when windows are sampled naturally.</p>
+<p>This is an important reason to report both clip counts and window counts. The training objective operates on windows, so the apparent class balance at the clip level does not describe the distribution of gradient updates. Conversely, clip-level validation gives a short clip and a long clip equal weight in the final class metrics, after aggregating their window probabilities. These choices are defensible if stated, but they are not interchangeable.</p>
 <h1>Short-Window Input Preparation</h1>
 <p>The shared frontend converts audio to mono at 8 kHz and uses 300 ms windows with a 150 ms hop. Each window contains 2,400 samples; adjacent windows overlap by 50%. Windows are generated after clip-level assignment and inherit their parent clip's split. Incomplete tails are not padded, and short clips do not contribute to the 300 ms metrics.</p>
 <p>The duration audit supports a shorter input than the earlier one-second setting. In the official training pool, aegypti yields 208,841 complete 300 ms windows but only 4,850 one-second windows; albopictus yields 46,648 versus 893. The large difference reflects the many 0.625 s clips. These counts describe window availability, not the duration of clearly audible mosquito activity.</p>
 <p>The log-mel representation has 40 mel bins and 27 time frames. It uses a 256-point periodic Hann analysis window, an 80-sample analysis hop, and a frequency range of 0–4 kHz. Learned input normalization is estimated from training windows alone. The waveform model receives the corresponding 2,400-sample segment. No per-clip amplitude normalization or augmentation is included in the baseline recipe.</p>
 <p>Three units must remain distinct: a short window, a released clip, and an independent recording source. Window counts reflect computational training volume. Clip metrics summarize the released units. Neither guarantees biological independence when multiple excerpts share source content.</p>
+<h1>Window Length, Sampling, and the Learning Objective</h1>
+<h2>What is gained by moving from one second to 300 ms?</h2>
+<p>The release-training duration audit compares complete windows at 150, 300, 625, and 1,000 ms. For aegypti, the 300 ms setting retains over forty times as many complete windows as the one-second setting; for albopictus the ratio exceeds fifty. These ratios concern the full released training population rather than the later four-class custom subset. The result explains why insisting on complete one-second inputs would discard much of the dominant short-clip material.</p>
+<p>The 300 ms choice also has a limit: it is still longer than some retained clips and may include substantial background around intermittent flight sound. A complete window is a geometric property of the stored recording. It does not establish that a mosquito is audible throughout the interval. Padding a shorter clip would add numerical samples but no additional observed wingbeat cycles; this baseline therefore avoids padding.</p>
+<p><strong>Complete-window availability at different lengths in the official training pool.</strong></p>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Species</th>
+      <th>150 ms</th>
+      <th>300 ms</th>
+      <th>625 ms</th>
+      <th>1,000 ms</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Aedes aegypti</td>
+      <td>481,950</td>
+      <td>208,841</td>
+      <td>71,955</td>
+      <td>4,850</td>
+    </tr>
+    <tr>
+      <td>Aedes albopictus</td>
+      <td>107,916</td>
+      <td>46,648</td>
+      <td>15,960</td>
+      <td>893</td>
+    </tr>
+    <tr>
+      <td>Anopheles dirus</td>
+      <td>8,633</td>
+      <td>4,262</td>
+      <td>1,986</td>
+      <td>1,201</td>
+    </tr>
+    <tr>
+      <td>Anopheles minimus</td>
+      <td>46,484</td>
+      <td>23,039</td>
+      <td>10,766</td>
+      <td>6,656</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><a href="tables/window_lengths_table.csv">Download table</a></p>
+<h2>The imbalance seen by the optimizer</h2>
+<p>The natural-window training population assigns approximately 37.27% of windows to aegypti, 9.85% to albopictus, 8.77% to dirus, and 44.11% to minimus. At the eligible-clip level, albopictus instead accounts for roughly 73.12% of training clips. The same dataset is therefore albopictus-dominated by clips and minimus-dominated by windows. Calling it simply balanced or imbalanced without naming the unit would conceal the mechanism relevant to training.</p>
+<p><strong>The different class distributions induced by clip counts and natural-window sampling.</strong></p>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Species</th>
+      <th>Eligible clips</th>
+      <th>Clip share (%)</th>
+      <th>Windows</th>
+      <th>Window share (%)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Aedes aegypti</td>
+      <td>95</td>
+      <td>5.06</td>
+      <td>15,592</td>
+      <td>37.27</td>
+    </tr>
+    <tr>
+      <td>Aedes albopictus</td>
+      <td>1,374</td>
+      <td>73.12</td>
+      <td>4,122</td>
+      <td>9.85</td>
+    </tr>
+    <tr>
+      <td>Anopheles dirus</td>
+      <td>63</td>
+      <td>3.35</td>
+      <td>3,669</td>
+      <td>8.77</td>
+    </tr>
+    <tr>
+      <td>Anopheles minimus</td>
+      <td>347</td>
+      <td>18.47</td>
+      <td>18,454</td>
+      <td>44.11</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><a href="tables/sampling_table.csv">Download table</a></p>
+<p>The common baseline retains natural sampling and unweighted cross-entropy so that this initial condition can be measured. Subsequent experiments could compare controlled sampling, weighted loss, or clip-balanced exposure. Such interventions should preserve the evaluation partition and disclose whether the number of optimizer steps changes. Otherwise, an apparent gain might arise from a different training budget rather than the intended treatment of imbalance.</p>
+<p>Window overlap further affects the interpretation of exposure. Adjacent 300 ms windows share 150 ms of samples, so two training windows are not equivalent to two independent recording events. Overlap is useful for covering the stored signal, but an increased hop density should not be reported as an increase in biological sample size.</p>
 <h1>Part B: Baselines and the Reasons for Choosing Them</h1>
 <p>Part B compares eight learned baselines and a majority-class reference. The aim is to establish whether performance depends strongly on input representation or architectural family before adding corrective training methods. The implementations use a common task definition and training recipe. Adapted or style-inspired models are identified as such; their results are not reproductions of the original papers' datasets and optimization settings.</p>
+<p><strong>Learned baseline implementations and their comparative roles.</strong></p>
 <table class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -258,11 +469,27 @@
 <p>The full neural recipe uses batch size 64, learning rate 0.001, a maximum of 40 epochs, and patience 8. It uses unweighted cross-entropy, natural window sampling, and no augmentation. Seed 42 is fixed. The forest uses 100 trees and maximum depth 10. These settings intentionally provide a common initial comparison; they do not eliminate the duration imbalance induced by natural window sampling.</p>
 <p>The primary selection measure is validation clip macro-F1. For a clip, class probabilities are averaged over its complete windows and the largest mean probability determines the label. Macro-F1 then averages equally across the four classes. Window macro-F1, balanced accuracy, per-class recall, and confusion patterns are reported alongside it. The majority reference is a sanity check on aggregate metrics under the observed class distribution.</p>
 <p>Full runs and smoke runs serve different purposes. Smoke results establish that the code and artifact path execute, whereas the recorded full runs support baseline comparisons. Test inference is deferred. This avoids using the held-out result to choose models, epochs, normalization, or the subsequent intervention.</p>
+<h1>Reading the Baseline Architectures as Experimental Controls</h1>
+<h2>Spectral descriptors and a non-neural reference</h2>
+<p>The forest receives 144 spectral and signal descriptors. The first 129 are log-power spectral values from 0 to 4 kHz at 31.25 Hz spacing. The remainder include centroid, spread, spectral roll-off, flatness, RMS level, periodicity estimates and confidence, harmonic fractions, and band-energy summaries. This representation provides a direct reference for whether relatively compact statistics already separate the recorded classes.</p>
+<p>The forest is not free from source confounding. Features such as RMS and spectral shape can encode acquisition conditions as well as mosquito sound. Its role is comparative: if the forest and learned frontends show the same class-specific failure, the evidence points beyond the idiosyncrasies of one neural architecture. The feature availability indicator also matters because an absent periodicity estimate must not silently be treated as a valid zero-frequency biological observation.</p>
+<h2>Conventional, temporal, and waveform models</h2>
+<p>Small CNN uses convolutional channels 16, 32, and 64 followed by global pooling. It provides a familiar spectrogram-learning reference with 23,668 trainable parameters. DS-CNN has 6,244 parameters and uses depthwise and pointwise operations to reduce weight cost. The comparison asks whether a compact architecture can retain useful discrimination under the same input and training conditions.</p>
+<p>TC-ResNet8 treats the 40 mel bins as input channels and applies temporal operations over the 27 analysis frames. Its 64,788 parameters are therefore not directly comparable to a two-dimensional CNN merely by counting layers. CNN–LSTM uses convolutional reduction followed by a 32-unit recurrent stage; six time steps remain after pooling. This offers a limited temporal-aggregation comparison within the short window, rather than a long-flight sequence model.</p>
+<p>The MosquitoSong-style network instead learns from the 2,400-sample waveform using strided one-dimensional convolutions and global pooling. It has 18,292 parameters. This is explicitly an inspired local architecture, not a reproduction of a paper's full data-processing and optimization recipe. Including it makes the input representation a visible experimental factor, but differences from log-mel models still combine frontend and architecture effects.</p>
+<h2>Efficient audio models and the meaning of model size</h2>
+<p>BC-ResNet1 uses broadcast residual operations and sub-spectral normalization in a four-class adaptation with 8,968 trainable parameters. MicroDSC-style uses channel widths 16, 32, 48, and 64, ReLU6, three pooling stages, and global average pooling, with 6,708 trainable parameters. Its normalization settings and implementation adaptations are documented in the model artifact rather than assumed identical to a reference framework.</p>
+<p>These models are included because edge deployment requires a range of computational structures, not because fewer parameters guarantee faster execution. A depthwise operation, recurrent layer, normalization block, or residual connection can have different support and overhead on different runtimes. Part B therefore records weight size and operation estimates as descriptive properties, while reserving hardware feasibility for measurements on the intended device.</p>
+<p>The baseline suite is deliberately broader than a competition for the highest single score. A common error across these families would be evidence that the dataset protocol deserves attention. Conversely, a difference between them would motivate a focused experiment with the same split, rather than an unrestricted search that changes the dataset and architecture together.</p>
+<h1>Readiness Criteria and Remaining Risks</h1>
+<p>The preparation freeze provides manifest hashes, selected D5 IDs, source coverage, window definitions, and quality decisions. These artifacts allow the exact examples reaching Part B to be reconstructed. The bounded near-duplicate search evaluates 46,733 anchors, produces 1,763 candidate pairs, retains 229 review pairs, and accepts 23 strong links under its configured thresholds. Its own summary states that the search is not complete over all possible offsets.</p>
+<p>The appropriate readiness claim is consequently operational: the specified pipeline can train and evaluate the frozen exploratory split. It is not a certificate that every source relationship has been resolved. Later inspection may reveal missed overlap, at which point the grouping policy and split require revision. Preserving the original freeze allows that revision to be understood rather than erasing the conditions under which the earlier results were obtained.</p>
+<p>The most important unresolved risks are concentrated source support for albopictus validation, unknown provenance for many clips, acquisition association with species labels, and unequal window exposure. The baseline has an explicit role despite these limits: to make the failure modes observable and supply an auditable reference for the next experimental decision.</p>
 <h1>Outcome and Next Reporting Stage</h1>
 <p>This stage produces a documented four-species exploratory dataset, explicit provenance limits, fixed short-window inputs, and a baseline suite spanning spectral, spectrogram, and waveform approaches. The preparation reduces avoidable ambiguity in the implementation while retaining the unresolved questions about source independence and acquisition conditions.</p>
 <p>The next question is empirical: do all four classes transfer under the selected train–validation relation? Week 4 follows that question through the albopictus failure, the diagnostic evidence, and the later within-D5 comparison. The change in validation domain must be treated as a change in the evaluation question.</p>
 <h1>Evidence and Companion HTML</h1>
 <p>The companion page contains the release-domain distribution, selected-pool summaries, model definitions, and the tables used here. It is available at https://ancaranovik.github.io/Edge_AI_Mosquito/reports/week-03/biodcase-baseline/ .</p>
 <p>Local evidence: results/A/biodcase/summary.json; target_species_training.csv; domain_by_split.csv; training_window_comparison.csv; results/A/preparation/tables/protocol_summary.csv, dataset_freeze.csv, research_split_summary.csv, and excluded_by_reason.csv. Baseline definitions and measured parameter counts are taken from the archived full run b67e5bff23cad061. These are existing artifacts; preparing this report does not rerun training.</p>
-<p>Release reference: BioDCASE 2026, Cross-Domain Mosquito Species Classification, Zenodo v2, https://zenodo.org/records/20478577 . Public release information is used for release identity and context; the numerical analyses in the report come from the local audit tables.</p>
+<p>Release reference: BioDCASE 2026, Zenodo v2, https://zenodo.org/records/20478577 . Numerical analyses use the local audit tables; release information establishes identity and context.</p>
 </body></html>

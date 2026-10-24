@@ -1,0 +1,8 @@
+Property,A_v1,A_v2
+Albopictus train clips,"1,374 D5","1,099 D5"
+Albopictus train windows,"4,122","3,297"
+Albopictus validation clips,67 D1,275 D5
+Albopictus validation windows,164,825
+D1 albopictus role,Validation selection,Diagnostic only
+Other species assignments,Original recorded assignments,Retained
+Seed,42,42

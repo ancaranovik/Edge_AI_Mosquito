@@ -1,10 +1,11 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Week 4 · Domain Transfer Failure and Seen-Domain Results</title><style>body{font:17px/1.7 system-ui,sans-serif;color:#20313e;max-width:1100px;margin:40px auto;padding:0 24px}h1,h2{color:#245579}h1{margin-top:44px}table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow:auto}th,td{border:1px solid #d8e0e5;padding:9px;text-align:left}th{background:#edf3f6}img{max-width:100%;height:auto}a{color:#245579}aside{padding:20px;background:#edf3f6}p{max-width:100%}</style></head><body><nav><a href="../../../">← Report archive</a></nav><header><p>VGU · Edge AI · Weekly Progress Report</p><h1>Week 4 — Domain Transfer Failure and Seen-Domain Results</h1><aside>Eight learned baselines fail to recognize albopictus when training on D5 and validating on D1: class recall is zero at both window and clip levels. Acoustic diagnostics support a distribution-shift hypothesis without identifying its cause. A revised within-D5 experiment reaches 96.94 percent validation clip macro-F1, but a subsequent audit finds highly correlated minimus signal across training and validation. The high score is therefore reported as preliminary, and the revised protocol is distinguished from a solution to unseen-domain recognition.</aside></header><h1>The Question Behind the Domain-Transfer Experiment</h1>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Week 4 · Domain Transfer Failure and Seen-Domain Results</title><style>body{font:17px/1.7 system-ui,sans-serif;color:#20313e;max-width:1100px;margin:40px auto;padding:0 24px}h1,h2{color:#245579}h1{margin-top:44px}table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow:auto}th,td{border:1px solid #d8e0e5;padding:9px;text-align:left}th{background:#edf3f6}img{max-width:100%;height:auto}a{color:#245579}aside{padding:20px;background:#edf3f6}p{max-width:100%}</style></head><body><nav><a href="../../../">← Report archive</a></nav><header><p>VGU · Edge AI · Weekly Progress Report</p><h1>Week 4 — Domain Transfer Failure and Seen-Domain Results</h1><aside><p>Eight learned baselines fail to recognize albopictus when training on D5 and validating on D1: class recall is zero at both window and clip levels. Acoustic diagnostics support a distribution-shift hypothesis without identifying its cause. A revised within-D5 experiment reaches 96.94 percent validation clip macro-F1, but a subsequent audit finds highly correlated minimus signal across training and validation. The high score is therefore reported as preliminary, and the revised protocol is distinguished from a solution to unseen-domain recognition.</p><p>The original validation contains 67 albopictus clips but only 164 windows; this class is therefore much less visible in pooled window accuracy than in clip-level evaluation. Central-window measurements show substantial differences between D5 training and D1 validation spectra, including median centroids of approximately 1,017 and 245 Hz. The available metadata do not isolate a sensor, biological, or noise mechanism.</p><p>The revised experiment moves D1 albopictus to a diagnostic partition and validates 275 D5 clips. All models recognize those D5 validation clips, but the later audit verifies 68 highly correlated minimus train–validation pairs and implicates 44 minimus validation clips. The report therefore distinguishes numerical score correctness from source independence and specifies why regrouping, a revised split, and retraining are required before interpreting the high score as an independent evaluation.</p></aside></header><h1>The Question Behind the Domain-Transfer Experiment</h1>
 <p>The fourth reporting stage investigates a failure that is obscured by pooled performance: every learned baseline assigns zero recall to Aedes albopictus on the A_v1 validation population. The experiment trains albopictus on D5 and evaluates it on D1. The later A_v2 experiment instead uses D5 in both training and validation and obtains much higher scores. These outcomes expose a research gap between recognizing labels within a familiar acquisition domain and retaining recognition when the class appears under different recording conditions.</p>
 <p>The report distinguishes the observed failure, supporting acoustic diagnostics, hypotheses that remain untested, and the narrower conclusion supported by the revised experiment. It also includes the subsequent split audit, because that audit limits how confidently the high within-domain scores can be interpreted. The purpose is to explain the change in experimental scope without presenting it as a solution to domain shift.</p>
 <h2>Scope of unseen domain in this experiment</h2>
 <p>A_v1 uses class-conditional domain holdouts. D1 is unseen for albopictus during training, but D1 appears for other species. Thus D5-to-D1 is a class-specific acquisition shift; it is not a globally unseen-domain evaluation of the entire classifier. The validation population contains 211 eligible clips and 11,952 complete windows, including 67 albopictus clips and 164 albopictus windows. These 67 clips map to one known source proxy, which limits the breadth of the transfer claim.</p>
 <p>Training contains 1,879 eligible clips and 41,837 windows. Albopictus contributes 1,374 training clips from D5 and 4,122 windows. Each clip is approximately 0.625 s long. In contrast, several other species contain much longer recordings, making their window contribution disproportionate to their clip counts. The main score is clip macro-F1, with window metrics reported separately.</p>
 <h1>A Consistent Failure Across Eight Baselines</h1>
+<p><strong>Albopictus training recall and D1 validation failure in A_v1.</strong></p>
 <table class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -72,6 +73,7 @@
 <p>Training recall for albopictus is approximately 99.64–100% across the models. The contrast shows that the selected D5 training samples are readily separable within the fitted training distribution, while that success does not transfer to the selected D1 validation source. High training recognition provides no assurance that the learned distinction is invariant to the acquisition change.</p>
 <h2>Why overall accuracy is insufficient</h2>
 <p>The best A_v1 clip macro-F1 is 65.32%, achieved by BC-ResNet1. The same model has 69.15% window macro-F1 and 93.33% window accuracy. Those three numbers answer different questions. Albopictus contributes only 164 of 11,952 validation windows, approximately 1.37%, but 67 of 211 clips, approximately 31.75%. A model can therefore have high window accuracy while failing every window from this class.</p>
+<p><strong>Validation macro-F1 under two different protocols; A_v2 remains preliminary.</strong></p>
 <table class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -136,9 +138,66 @@
 <p><a href="tables/metrics_table.csv">Download table</a></p>
 <p><img loading="lazy" src="images/protocol_scores.png" alt="Validation clip macro-F1 under A_v1 and A_v2. The bars summarize different protocols and validation populations; their separation is not an estimate of an architectural improvement." /></p>
 <p>Macro-F1 reduces the direct dominance of class counts when combining class-specific scores, but it cannot repair a mismatch in recording conditions or provide independence between related excerpts. Per-class recall and the domain composition remain essential to interpreting the aggregate result.</p>
+<h1>Separating the Sources of the Apparent Performance Gap</h1>
+<h2>A within-class transfer failure, not a missing output label</h2>
+<p>The albopictus class is present in training, in the model output space, and in the saved prediction tables. Its zero validation recall is therefore not explained by an omitted class in the evaluation definition. Training recall is high, yet none of the 67 eligible D1 clips is assigned to albopictus after window-probability aggregation. This makes the failure scientifically different from a label that is unlearnable even on the training examples.</p>
+<p>The saved diagnostic audit recomputes the full baseline metrics at both window and clip levels and finds them consistent with the recorded tables. This verification is valuable because a dramatic class failure can also arise from swapped label IDs, incorrect aggregation, or an inconsistent prediction file. Here the available checks support treating the failure as an observed model–data outcome rather than dismissing it as an obvious scoring artifact.</p>
+<p>Nevertheless, agreement with a saved metric is not a causal explanation. It confirms the calculation under the recorded labels and protocol. It does not independently verify the biological identity of every source, and it cannot show that D5 and D1 differ in only one physical factor. The diagnostic stage therefore moves from a verified error pattern to an explicitly constrained set of explanations.</p>
+<h2>Denominators change the impression of success</h2>
+<p>The window population gives albopictus approximately one seventy-third of the validation weight, whereas the clip population gives it nearly one third. This disparity arises because the other classes include longer clips with many windows. A model that gets the long clips mostly correct can accumulate many correct windows while entirely missing the short albopictus population.</p>
+<p>Balanced accuracy averages class recalls, while macro-F1 also depends on the precision of each class prediction. Neither is equivalent to pooled accuracy. A zero-recall class contributes zero class F1, so an otherwise strong three-class result can still have a macro-F1 near the reported 0.65 range. The metric is doing useful work by exposing the incomplete four-class solution; the class-specific table explains what the aggregate has lost.</p>
+<p>The majority baseline illustrates the same denominator issue. Its validation window accuracy is approximately 49.56%, while its clip accuracy is 43.60%, because minimus is the chosen majority prediction and occupies different fractions of the two populations. The reference does not compete as a useful species model, but it makes clear that the apparent chance level depends on the evaluation unit and label distribution.</p>
+<p><strong>The validation class distribution changes with the evaluation unit in A_v1.</strong></p>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Species</th>
+      <th>Validation clips</th>
+      <th>Validation windows</th>
+      <th>Clip share (%)</th>
+      <th>Window share (%)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Aegypti</td>
+      <td>28</td>
+      <td>4,681</td>
+      <td>13.27</td>
+      <td>39.16</td>
+    </tr>
+    <tr>
+      <td>Albopictus</td>
+      <td>67</td>
+      <td>164</td>
+      <td>31.75</td>
+      <td>1.37</td>
+    </tr>
+    <tr>
+      <td>Dirus</td>
+      <td>24</td>
+      <td>1,184</td>
+      <td>11.37</td>
+      <td>9.91</td>
+    </tr>
+    <tr>
+      <td>Minimus</td>
+      <td>92</td>
+      <td>5,923</td>
+      <td>43.60</td>
+      <td>49.56</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><a href="tables/denominators_table.csv">Download table</a></p>
+<h2>Aggregation can reduce some errors without repairing a domain mismatch</h2>
+<p>For each clip, the classifier averages window probabilities before taking the largest value. This can stabilize predictions when windows are noisy but contain complementary evidence. It can also make a consistently wrong class assignment more stable. In the albopictus D1 case, confidence concentrated on minimus throughout the available windows cannot be repaired simply by averaging more of the same evidence.</p>
+<p>This distinction matters for a microphone encounter lasting less than a second. A long released recording may allow many windows to contribute to one clip decision, whereas a brief fly-by may provide only one or two usable windows. The current clip score is therefore a property of the released clips and aggregation rule. It is not an event-detection score for an arbitrary passing mosquito, even when the underlying network input is 300 ms.</p>
 <h1>Diagnostic Evidence and Competing Explanations</h1>
 <h2>What the saved acoustic analysis measures</h2>
 <p>The full diagnostic run 4080bfe9facd7936 rechecks predictions and measures one central A_v1 window per clip. Spectral comparisons normalize total energy, allowing relative frequency content to be compared without equating the absolute signal levels. The summaries describe these selected segments; they are not exhaustive activity annotations for the full recordings.</p>
+<p><strong>Median central-window measurements for albopictus by domain.</strong></p>
 <table class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -175,9 +234,22 @@
 <p>The available metadata do not identify which mechanism causes the errors. D5 sensor modality and biological conditions are not fully mapped. The D1 albopictus population includes known female, male, and unknown-sex recordings associated with Alcatel 4009X metadata, whereas D5 sex and device entries are unknown. This asymmetry prevents attributing the failure specifically to sex, temperature, microphone response, or label quality.</p>
 <p>The systematic minimus prediction may reflect similarity to cues that the classifier associates with minimus, but the prediction itself is not evidence that the clips contain that species. It also does not prove that background noise is the decisive feature. A causal claim would require a controlled comparison that changes one relevant factor while preserving the biological and recording population as far as possible.</p>
 <p>The research gap is therefore operationally specific: the current pipeline has not demonstrated a species representation that transfers from the available D5 albopictus recordings to the available D1 source. The experiment does not establish that cross-domain mosquito recognition is impossible, nor that a particular adaptation method would resolve this case.</p>
+<h1>How the Acoustic Diagnostics Should Be Interpreted</h1>
+<h2>Relative energy reveals a shift but does not identify noise</h2>
+<p>The central-window comparison shows a lower centroid and a greater fraction of energy below 200 Hz in D1 albopictus. Relative spectral normalization controls the total energy of each spectrum for visualization. It does not remove a low-frequency component, distinguish background from flight tone, or estimate how much mosquito activity is present. A large relative low-frequency fraction may reflect several sources of variation.</p>
+<p>The median periodicity confidence is approximately 0.9349 in D5 and 0.2688 in D1. This supports a difference in the regularity captured by the configured estimator. It does not establish that the more periodic group is biologically cleaner, or that the less periodic group lacks mosquitoes. Estimator confidence depends on signal composition and the selected analysis range, and a periodic acquisition artifact could also produce a stable pattern.</p>
+<p>The analysis deliberately uses one central window per clip rather than selecting the most visually convincing segment. This avoids choosing examples solely because they support an explanation, but it also means the measurement may miss an active flight interval elsewhere in a long clip. The resulting group summaries should be read as a reproducible diagnostic sample, not as complete annotations of each recording.</p>
+<h2>Metadata support and its asymmetry</h2>
+<p>The D1 validation metadata identify 17 albopictus clips as female, eight as male, and 42 as unknown sex. All 67 are linked to Alcatel 4009X in the available mapped device field. D5 has 1,374 training clips with unknown sex and device in the diagnostic metadata. The correct comparison is therefore between one partially characterized D1 source and a D5 population whose biological and sensor composition is incompletely known.</p>
+<p>The sex difference is a possible confound, but the unknown D5 entries prevent stating a sex-controlled explanation. The same applies to temperature: its biological relevance does not mean that a temperature mismatch has been measured in these recordings. No temperature correction is performed, and the current evidence cannot estimate the contribution of temperature to the observed centroid or classification difference.</p>
+<p>Unmapped sensor provenance is equally consequential. D5 should not be described as an INMP441 recording population or assumed to match the intended embedded microphone. A classifier can work very well within a source whose transfer to the deployment sensor remains unknown. The domain label provides a useful experimental partition, but it does not replace acquisition metadata.</p>
+<h2>A hierarchy of conclusions</h2>
+<p>The strongest directly supported conclusion is that every baseline fails to recover the selected D1 albopictus clips after training on the selected D5 clips. The next conclusion is descriptive: these groups differ in several measured acoustic summaries. A broader interpretation is that acquisition or source-associated variation contributes to the difficulty. The identity of the causal factor remains unestablished.</p>
+<p>This hierarchy prevents a common overreach: observing different spectra, naming the difference background noise, and then claiming that a denoising method should solve the transfer failure. The current evidence does not isolate a noise component or demonstrate that removing it preserves species cues. It supports a controlled follow-up question rather than a completed explanation.</p>
 <h1>Pausing the Transfer Investigation and Testing a Seen Domain</h1>
 <p>The next saved experiment narrows the question to within-D5 validation for albopictus. A_v2 retains the 1,374 selected D5 clips but assigns 1,099 to training and 275 to validation, using seed 42. The earlier D1 albopictus population moves to a diagnostic partition and is not consumed by baseline B. The assignments for the other species and the custom test population remain as recorded in the A_v2 preparation.</p>
 <p>This decision pauses the cross-domain problem to determine whether the pipeline learns effectively under a more familiar class-specific domain. It is a change of scope. It does not correct the D5-to-D1 failure or demonstrate that the unseen-domain research gap has been closed. Because the redesign follows observation of the original failure, it must remain explicitly documented.</p>
+<p><strong>Overall eligible populations for A_v1 and A_v2.</strong></p>
 <table class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -212,6 +284,202 @@
 <p>Clip macro-F1 ranges from 95.77% for the spectral forest to 96.94% for BC-ResNet1 and TC-ResNet8. The latter models also reach 98.81% clip accuracy. BC-ResNet1 has the strongest window macro-F1 at 94.66%; the corresponding TC-ResNet8 score is 93.73%. Every model correctly classifies all 275 albopictus D5 validation clips.</p>
 <p>For BC-ResNet1, the observed clip macro-F1 rises from 65.32% in A_v1 to 96.94% in A_v2, a numerical difference of 31.62 percentage points. This contrast does not estimate a treatment effect: the validation population, albopictus domain, and training membership change together. It demonstrates sensitivity to the experimental protocol, rather than an architecture improving by that amount.</p>
 <p>The high clip scores also incorporate aggregation over multiple windows. A 96.94% clip macro-F1 must not be described as the recognition performance of a single 300 ms observation. Clip duration varies across species, so the amount of evidence being averaged also varies. The separate window scores are necessary for discussing a future streaming system.</p>
+<h1>What the Revised Protocol Actually Changes</h1>
+<h2>Training membership, validation composition, and the target question</h2>
+<p>A_v2 changes more than the domain name attached to validation. The 1,374 D5 albopictus clips that were all available for A_v1 training are divided into 1,099 training and 275 validation clips. Albopictus training windows fall from 4,122 to 3,297. Its validation contribution rises from 164 D1 windows to 825 D5 windows. The original D1 examples become a diagnostic population rather than the selection set.</p>
+<p>Other species retain their recorded assignments, so their eligible validation counts remain 28 aegypti, 24 dirus, and 92 minimus. The overall validation count grows from 211 to 419 clips. Albopictus now occupies 65.63% of validation clips rather than 31.75%. These changes make the two validation populations unsuitable for a simple before–after claim about model quality, even when a metric such as macro-F1 gives classes equal weight in its final average.</p>
+<p><strong>Experimental changes between A_v1 and A_v2.</strong></p>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Property</th>
+      <th>A_v1</th>
+      <th>A_v2</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Albopictus train clips</td>
+      <td>1,374 D5</td>
+      <td>1,099 D5</td>
+    </tr>
+    <tr>
+      <td>Albopictus train windows</td>
+      <td>4,122</td>
+      <td>3,297</td>
+    </tr>
+    <tr>
+      <td>Albopictus validation clips</td>
+      <td>67 D1</td>
+      <td>275 D5</td>
+    </tr>
+    <tr>
+      <td>Albopictus validation windows</td>
+      <td>164</td>
+      <td>825</td>
+    </tr>
+    <tr>
+      <td>D1 albopictus role</td>
+      <td>Validation selection</td>
+      <td>Diagnostic only</td>
+    </tr>
+    <tr>
+      <td>Other species assignments</td>
+      <td>Original recorded assignments</td>
+      <td>Retained</td>
+    </tr>
+    <tr>
+      <td>Seed</td>
+      <td>42</td>
+      <td>42</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><a href="tables/protocol_detail_table.csv">Download table</a></p>
+<p>The redesign is useful as a narrower experiment because it asks whether a model can recognize held-out clips from the D5 condition. Its limits are also narrower: success there cannot be used to infer restored D1 recall without evaluating that question separately under a stated protocol. The earlier failed D1 validation examples should remain visible in the experiment history so that a change of scope is not mistaken for elimination of the failure.</p>
+<h2>Why this is not an ablation of domain shift alone</h2>
+<p>A controlled ablation would ideally preserve the training data, source relationships, target population, optimization budget, and evaluation method while altering one defined factor. Here the training examples and validation population both change. A_v2 also uses its validation set to select best checkpoints. The numerical difference between A_v1 and A_v2 therefore combines membership effects, distribution effects, and model-selection effects.</p>
+<p>The result is still informative. It shows that poor A_v1 albopictus transfer coexists with strong performance on held-out D5 clips. This rules out an interpretation that the entire implementation is incapable of separating the selected labels under any available condition. It does not isolate how much of the improvement is caused by removing the acquisition shift, nor how much independence the revised validation provides.</p>
+<h1>Reading the Full Results Beyond the Maximum Score</h1>
+<h2>Convergence and checkpoint selection in the original full run</h2>
+<p>The seven neural models terminate after different numbers of epochs under the common patience rule. Small CNN runs for nineteen epochs and selects epoch eleven; DS-CNN runs eleven and selects epoch three; TC-ResNet8 runs twelve and selects epoch four. The remaining models also select early epochs. This indicates that the recorded comparison is between validation-selected checkpoints, not uniformly the final epoch or an equal number of updates.</p>
+<p><strong>Convergence and checkpoint selection in the archived A_v1 full run.</strong></p>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Model</th>
+      <th>Epochs run</th>
+      <th>Best epoch</th>
+      <th>Updates</th>
+      <th>Fit seconds</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Small CNN</td>
+      <td>19</td>
+      <td>11</td>
+      <td>12,426</td>
+      <td>167.25</td>
+    </tr>
+    <tr>
+      <td>DS-CNN</td>
+      <td>11</td>
+      <td>3</td>
+      <td>7,194</td>
+      <td>109.77</td>
+    </tr>
+    <tr>
+      <td>TC-ResNet8</td>
+      <td>12</td>
+      <td>4</td>
+      <td>7,848</td>
+      <td>123.61</td>
+    </tr>
+    <tr>
+      <td>CNN–LSTM</td>
+      <td>10</td>
+      <td>2</td>
+      <td>6,540</td>
+      <td>91.72</td>
+    </tr>
+    <tr>
+      <td>MosquitoSong-style 1D</td>
+      <td>13</td>
+      <td>5</td>
+      <td>8,502</td>
+      <td>136.75</td>
+    </tr>
+    <tr>
+      <td>BC-ResNet1</td>
+      <td>13</td>
+      <td>5</td>
+      <td>8,502</td>
+      <td>250.33</td>
+    </tr>
+    <tr>
+      <td>MicroDSC-style</td>
+      <td>13</td>
+      <td>5</td>
+      <td>8,502</td>
+      <td>110.90</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><a href="tables/training_table.csv">Download table</a></p>
+<p>The stopping behavior should not be used to diagnose why albopictus fails. A checkpoint can improve aggregate macro-F1 through the other classes while retaining zero albopictus recall. Similarly, the fact that increasing network complexity does not fix the failure under this recipe is not evidence that no possible training method can work. It establishes a limit of the completed comparison.</p>
+<p>For subsequent experiments, the meaningful requirement is to keep the selection criterion and budget explicit. If an intervention adds data balancing and also doubles the number of updates, the resulting difference cannot be attributed solely to balancing. If checkpoint selection changes from clip macro-F1 to window accuracy, it changes the criterion under which apparent progress is measured.</p>
+<h2>Compact models, computation, and latency</h2>
+<p>The baseline artifacts record more than accuracy. The four-class MicroDSC-style model has 6,708 parameters and an estimated 404,496 multiply–accumulate operations per input, while TC-ResNet8 has 64,788 parameters but an estimated 441,024 operations. Small CNN has fewer parameters than TC-ResNet8 but a much higher operation estimate. Parameter count alone therefore does not order these models by computational work.</p>
+<p><strong>Local neural-model cost estimates and recorded host-CPU timing in A_v1.</strong></p>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Model</th>
+      <th>Parameters</th>
+      <th>MACs</th>
+      <th>Raw weights KiB</th>
+      <th>Host median ms</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Small CNN</td>
+      <td>23,668</td>
+      <td>2,459,776</td>
+      <td>92.45</td>
+      <td>1.79</td>
+    </tr>
+    <tr>
+      <td>DS-CNN</td>
+      <td>6,244</td>
+      <td>1,550,208</td>
+      <td>24.39</td>
+      <td>4.06</td>
+    </tr>
+    <tr>
+      <td>TC-ResNet8</td>
+      <td>64,788</td>
+      <td>441,024</td>
+      <td>253.08</td>
+      <td>3.29</td>
+    </tr>
+    <tr>
+      <td>CNN–LSTM</td>
+      <td>13,428</td>
+      <td>1,402,880</td>
+      <td>52.45</td>
+      <td>2.23</td>
+    </tr>
+    <tr>
+      <td>MosquitoSong-style 1D</td>
+      <td>18,292</td>
+      <td>4,475,776</td>
+      <td>71.45</td>
+      <td>2.38</td>
+    </tr>
+    <tr>
+      <td>BC-ResNet1</td>
+      <td>8,968</td>
+      <td>663,572</td>
+      <td>35.03</td>
+      <td>16.82</td>
+    </tr>
+    <tr>
+      <td>MicroDSC-style</td>
+      <td>6,708</td>
+      <td>404,496</td>
+      <td>26.20</td>
+      <td>3.27</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><a href="tables/cost_table.csv">Download table</a></p>
+<p>The original full run also measures prepared-window inference on a host CPU with four threads, batch size one, and twenty repeats. Small CNN has approximately 1.79 ms total median frontend-plus-model time, BC-ResNet1 16.82 ms, and the spectral forest 31.70 ms. Those timings describe the recorded host implementation. They do not predict ESP32-S3 latency, power consumption, or whether all operations are supported by the embedded runtime.</p>
+<p>These measurements reinforce the need to separate two decisions. First, the evaluation must be credible enough to decide whether models differ in recognition behavior. Second, the model must be measured on the target hardware before claiming practical feasibility. A preliminary 96.94% clip macro-F1 does not bypass either requirement.</p>
 <h1>Post-Training Audit: Limits on the High Scores</h1>
 <p>The subsequent A_v2 audit reproduces the split, verifies input hashes, recomputes normalization from training windows, and recalculates the saved metrics. Those checks support the numerical correctness of the score tables. They do not establish source independence, and the waveform audit finds a concrete reason that the latter claim would be premature.</p>
 <p>Of 69 train–validation candidate pairs rechecked from raw audio, 68 have absolute correlation at least 0.995 over aligned overlaps of one to two seconds; 39 reach at least 0.999. All involve minimus. At least 46 training clips and 44 of the 92 minimus validation clips are implicated. The 44 validation clips represent 47.83% of that class's validation population, but this does not mean that every sample in those clips is duplicated.</p>
@@ -221,11 +489,75 @@
 <h2>What the D5 audit adds</h2>
 <p>For albopictus D5, the supplementary audit compares all 302,225 train–validation clip pairs over 5,201 integer-sample offsets with at least 300 ms overlap. No pair reaches absolute correlation 0.995; the maximum is approximately 0.969892. This search finds no evidence of the same strong partial-waveform duplication detected for minimus within its stated search scope.</p>
 <p>That negative finding is useful but does not certify independent D5 sessions or individual mosquitoes. D5 remains associated exclusively with albopictus in the selected train–validation pool, and the metadata do not establish how many independent biological sources support its 1,374 clips. Within-D5 recognition may therefore benefit from domain-associated cues even without detected near-duplicate waveforms.</p>
+<h1>Why the Split Audit Changes the Status of the Result</h1>
+<h2>Relationships missed by exact hashes and constructed groups</h2>
+<p>The near-duplicate audit's strongest evidence is not a shared spectral peak but a close match in the detailed time-varying waveform after alignment. In one D3-to-D4 minimus example, a gain-adjusted two-second overlap has correlation 0.999941 and first-difference correlation 0.999872. A second example within D3 has an aligned one-second correlation of 0.999843 and first-difference correlation 0.999979. Such agreement supplies evidence of closely related signal content beyond broad similarity in wingbeat frequency.</p>
+<p>The prior search accepted strong links only if a short 300 ms anchor reached 0.9999 and an extended match reached 0.999. A pair can fall slightly below the anchor threshold while matching more strongly over a longer interval. The audit example with a short-anchor correlation around 0.999825 illustrates how an incomplete candidate-acceptance rule can leave a source relationship outside the constructed group graph.</p>
+<p>This explains the apparent contradiction between a passing group-separation check and a later overlap finding. The check verifies the graph that exists; it cannot verify edges that were never added. Improving the grouping requires examining the signal-link procedure and updating connected components before reassigning splits. Merely rerunning the same group-ID check will reproduce the same limited guarantee.</p>
+<h2>Silent exact matches and active overlap are different evidence</h2>
+<p>Ten validation windows are bit-identical to training windows in the audit. Six are entirely zero; the other four are near-silent with only two quantization levels and RMS around 2.3–3.3 × 10⁻⁶. Such windows warrant an explicit activity and silence policy, but they alone do not identify a shared biological recording. The one- to two-second high-correlation signal overlaps are the substantive evidence for train–validation dependence.</p>
+<p>The distinction matters when reporting impact. A count of exact matching windows is not a complete estimate of leakage, and a count of implicated clips is not a count of duplicated duration. The audit therefore reports pairs, implicated clips, fully contained windows, and intersecting windows separately. Each denominator answers a different question about the evidence that was actually checked.</p>
+<p><strong>Distinct quantities established by the post-training waveform audit.</strong></p>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Audit quantity</th>
+      <th>Count</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Train–validation pairs rechecked</td>
+      <td>69</td>
+    </tr>
+    <tr>
+      <td>Pairs with absolute r &gt;= 0.995</td>
+      <td>68</td>
+    </tr>
+    <tr>
+      <td>Pairs with absolute r &gt;= 0.999</td>
+      <td>39</td>
+    </tr>
+    <tr>
+      <td>Implicated training clips (at least)</td>
+      <td>46</td>
+    </tr>
+    <tr>
+      <td>Implicated validation clips</td>
+      <td>44</td>
+    </tr>
+    <tr>
+      <td>Validation windows fully within verified overlaps</td>
+      <td>471</td>
+    </tr>
+    <tr>
+      <td>Validation windows intersecting verified overlaps</td>
+      <td>519</td>
+    </tr>
+    <tr>
+      <td>All windows in implicated validation clips</td>
+      <td>2,587</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><a href="tables/audit_scope_table.csv">Download table</a></p>
+<h2>What cannot be estimated from this audit</h2>
+<p>The audit observes that DS-CNN and BC-ResNet correctly classify 43 of the 44 implicated minimus validation clips. This is compatible with source dependence being helpful, but it does not prove that those predictions were caused by memorized overlaps. Nor can subtracting those correct predictions estimate the performance a retrained independent model would achieve.</p>
+<p>The saved checkpoints were selected using the existing validation set. Removing rows after model selection would leave that selection history intact and would not address missed relationships elsewhere. The appropriate endpoint of the audit is therefore a revised data protocol and new full runs, rather than a retrospectively corrected accuracy claim.</p>
 <h1>Interpretation and Next Steps</h1>
 <p>The defensible result is twofold. First, A_v1 exposes a reproducible class-specific transfer failure: albopictus recall is zero across eight learned baselines. Second, A_v2 shows that the same broad baseline suite obtains high validation scores when albopictus is evaluated within D5, with a maximum of 96.94% clip macro-F1. The latter remains preliminary because of verified minimus overlap and unresolved source independence.</p>
 <p>At this point the cross-domain investigation is paused rather than claimed as solved. Further model optimization should not use the current high score as a clean reference. The immediate methodological requirement is to expand waveform-link discovery, merge related clips into source components, rebuild the split, and rerun the fixed baseline recipe. Any suspect test relationships should be reviewed as data-integrity questions before final scoring, without using test predictions to select the design.</p>
 <p>The audit cannot quantify how much the overlap elevates macro-F1. Removing only the implicated validation rows would also be inadequate: the checkpoints were selected using that validation population, the search is incomplete, and a changed split requires new training. Similarly, one seed provides no estimate of sensitivity to model initialization or partition choice.</p>
 <p>The project's application claim remains limited to a four-class experiment on labelled audio. Neither protocol establishes rejection of environmental negatives, recognition of species outside the selected set, independent unseen-source performance, or deployment accuracy with an INMP441 microphone. Those questions remain separate evaluations after the dataset protocol is repaired.</p>
+<h1>A Bounded Plan for Continuing the Research</h1>
+<h2>Repair evaluation before claiming a new modelling contribution</h2>
+<p>The next dataset version should incorporate a broader search for shifted, gain-scaled, and quantized overlaps, retain the resulting evidence, and group connected excerpts together. Candidate processing must cover the relevant pool rather than only the already observed minimus pairs. The test boundary also requires integrity review because the prior tables include four candidate links involving test; this review should avoid using test model performance to choose the split.</p>
+<p>If the resulting groups leave too few independent sources for a defensible four-class validation set, the experiment should state that limitation directly. Changing a random seed, reducing the hop, or creating more windows cannot create independent biological support. Acquiring source metadata or new recordings may be more informative than another architecture search.</p>
+<h2>Keep the paused cross-domain question identifiable</h2>
+<p>After evaluation repair, a within-domain benchmark and a domain-transfer experiment can coexist as distinct protocols. The former establishes a conditional development reference. The latter addresses transfer under a specified acquisition change. Preserving both prevents later improvements on familiar-domain validation from being presented as evidence for generalization that was never measured.</p>
+<p>A future causal diagnostic should specify which factor is varied and what is held fixed. For example, a signal-level intervention needs a defined transform and a matched baseline; a source-balanced experiment needs independently identified groups; a biological explanation needs relevant metadata. These are proposed requirements, not completed experiments in this reporting period.</p>
+<p>The current research contribution is thus the identification and characterization of a reproducible transfer failure, together with an audit showing why a much higher alternative score remains provisional. That is substantive progress even though it does not yet deliver a deployable cross-domain classifier.</p>
 <h1>Evidence and Companion HTML</h1>
 <p>The Week 4 companion page places the two protocol score tables beside the failure and acoustic summaries and preserves the preliminary status of A_v2. It is available at https://ancaranovik.github.io/Edge_AI_Mosquito/reports/week-04/domain-gap/ .</p>
 <p>Local evidence: archived A_v1 full run b67e5bff23cad061; full diagnostic run 4080bfe9facd7936; A_v2 full run 3fbd55b9b3895b9c; results/A_v2/split_audit/report.html and its verified_cross_split_waveforms.csv, recomputed_metrics.csv, split_domain_counts.csv, and D5_exhaustive_summary.json. Numerical scores are validation results, not official challenge or held-out test results. This report summarizes saved analyses and does not perform additional training.</p>
