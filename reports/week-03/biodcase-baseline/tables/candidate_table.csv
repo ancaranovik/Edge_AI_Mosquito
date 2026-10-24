@@ -1,0 +1,5 @@
+Species,Training clips,Median seconds,Domains,300 ms windows
+Anopheles dirus,76,7.32,1,"4,262"
+Anopheles minimus,395,2.00,3,"23,039"
+Aedes aegypti,"64,251",0.62,3,"208,841"
+Aedes albopictus,"14,582",0.62,3,"46,648"

@@ -1,0 +1,9 @@
+Species,Partition,Eligible clips,Windows
+Aedes aegypti,train,95,"15,592"
+Aedes aegypti,validation,28,"4,681"
+Aedes albopictus,train,"1,374","4,122"
+Aedes albopictus,validation,67,164
+Anopheles dirus,train,63,"3,669"
+Anopheles dirus,validation,24,"1,184"
+Anopheles minimus,train,347,"18,454"
+Anopheles minimus,validation,92,"5,923"
