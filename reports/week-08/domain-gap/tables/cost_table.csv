@@ -1,0 +1,8 @@
+Model,Parameters,MACs,Raw weights KiB,Host median ms
+Small CNN,"23,668","2,459,776",92.45,1.79
+DS-CNN,"6,244","1,550,208",24.39,4.06
+TC-ResNet8,"64,788","441,024",253.08,3.29
+CNN–LSTM,"13,428","1,402,880",52.45,2.23
+MosquitoSong-style 1D,"18,292","4,475,776",71.45,2.38
+BC-ResNet1,"8,968","663,572",35.03,16.82
+MicroDSC-style,"6,708","404,496",26.20,3.27

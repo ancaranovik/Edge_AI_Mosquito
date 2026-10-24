@@ -1,0 +1,8 @@
+Model,Epochs run,Best epoch,Updates,Fit seconds
+Small CNN,19,11,"12,426",167.25
+DS-CNN,11,3,"7,194",109.77
+TC-ResNet8,12,4,"7,848",123.61
+CNN–LSTM,10,2,"6,540",91.72
+MosquitoSong-style 1D,13,5,"8,502",136.75
+BC-ResNet1,13,5,"8,502",250.33
+MicroDSC-style,13,5,"8,502",110.90

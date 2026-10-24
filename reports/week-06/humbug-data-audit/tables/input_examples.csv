@@ -1,0 +1,13 @@
+﻿id,species,sound_type,name,relative_path,duration_seconds,sample_rate,channels
+199980,,background,background.wav,data/raw/train/199980.wav,1121.88,8000,1
+54,ae aegypti,mosquito,CDC_Ae-aegypti_labelled_800.wav,data/raw/train/54.wav,0.10400000000000001,8000,1
+57,ae aegypti,mosquito,CDC_Ae-aegypti_labelled_800.wav,data/raw/train/57.wav,0.170125,8000,1
+61,ae aegypti,mosquito,CDC_Ae-aegypti_labelled_800.wav,data/raw/train/61.wav,0.10400000000000001,8000,1
+69,ae aegypti,mosquito,CDC_Ae-aegypti_labelled_800.wav,data/raw/train/69.wav,0.27425000000000005,8000,1
+56,ae aegypti,mosquito,CDC_Ae-aegypti_labelled_800.wav,data/raw/train/56.wav,0.420875,8000,1
+81,ae aegypti,mosquito,CDC_Ae-aegypti_labelled_800.wav,data/raw/train/81.wav,0.302625,8000,1
+70,ae aegypti,mosquito,CDC_Ae-aegypti_labelled_800.wav,data/raw/train/70.wav,0.226875,8000,1
+86,ae aegypti,mosquito,CDC_Ae-aegypti_labelled_800.wav,data/raw/train/86.wav,0.26475000000000004,8000,1
+62,ae aegypti,mosquito,CDC_Ae-aegypti_labelled_800.wav,data/raw/train/62.wav,0.10400000000000001,8000,1
+71,ae aegypti,mosquito,CDC_Ae-aegypti_labelled_800.wav,data/raw/train/71.wav,0.690375,8000,1
+72,ae aegypti,mosquito,CDC_Ae-aegypti_labelled_800.wav,data/raw/train/72.wav,0.506,8000,1

@@ -1,0 +1,39 @@
+﻿species,dev/a,dev/b,train
+ae aegypti,0,0,123
+ae albopictus,0,0,79
+an albimanus,0,0,55
+an arabiensis,1153,0,832
+an atroparvus,0,0,13
+an barbirostris,0,0,10
+an coluzzii,0,0,14
+an coustani,0,0,92
+an dirus,0,0,129
+an farauti,0,0,13
+an freeborni,0,0,52
+an funestus,0,0,18
+an funestus sl,0,0,104
+an funestus ss,0,0,381
+an gambiae,0,0,39
+an gambiae sl,0,0,42
+an gambiae ss,0,0,737
+an harrisoni,0,0,124
+an leesoni,0,0,3
+an maculatus,0,0,117
+an maculipalpis,0,0,79
+an merus,0,0,4
+an minimus,0,0,20
+an pharoensis,0,0,3
+an quadriannulatus,0,0,70
+an rivulorum,0,0,1
+an sinensis,0,0,11
+an squamosus,0,0,141
+an stephensi,0,0,45
+an ziemanni,0,0,9
+coquillettidia sp,0,0,2
+culex pipiens complex,0,0,545
+culex quinquefasciatus,0,71,601
+culex tarsalis,0,0,39
+culex tigripes,0,0,18
+ma africanus,0,0,78
+ma uniformis,0,0,131
+toxorhynchites brevipalpis,0,0,4

@@ -1,0 +1,3 @@
+﻿id,species,sound_type,partition,name,relative_path,sha256
+219824,,background,train,r2016-07-25_12.23.12.084.wav_u2016-07-25_13.10.31.831177.wav,data/raw/train/219824.wav,98e788fd6a8b24490227ff7b70eafc4bb34d02054dd36f54c5e3adc99721eb47
+219825,,background,train,r2016-07-25_12.23.12.084.wav_u2016-07-25_13.10.31.831177.wav,data/raw/train/219825.wav,98e788fd6a8b24490227ff7b70eafc4bb34d02054dd36f54c5e3adc99721eb47

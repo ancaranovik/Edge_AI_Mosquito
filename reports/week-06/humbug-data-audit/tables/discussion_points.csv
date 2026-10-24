@@ -1,0 +1,6 @@
+﻿question,evidence,status
+Which labels should be selected?,"species_candidates.csv, listening examples, and provenance checks",Pending discussion
+What defines an independent group?,source_counts.csv and source_ambiguities.csv,Individuals and sessions remain unverified
+How should short clips be retained?,window_feasibility.csv; padding adds no recorded signal,Undecided
+How should duplicates and quality flags be handled?,duplicate_audio.csv and quality_flags.csv,No files excluded
+Should the original dev partition serve as validation?,Label coverage in species_partitions.csv,No research split created

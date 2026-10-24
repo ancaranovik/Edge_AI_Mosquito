@@ -1,0 +1,9 @@
+﻿partition,sound_type,clips,seconds
+dev/a,background,10,3979.7200000000003
+dev/a,false_positive,1002,5789.79775
+dev/a,mosquito,1153,4118.159375
+dev/b,background,86,2019.9424999999999
+dev/b,mosquito,71,898.18025
+train,audio,602,1850.6667573696143
+train,background,1918,46529.17371428572
+train,mosquito,5676,61057.58028939909

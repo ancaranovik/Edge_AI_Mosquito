@@ -1,0 +1,9 @@
+Model,Input,Trainable parameters,Purpose
+Spectral RF,Spectral descriptors,N/A,Non-neural spectral reference
+Small CNN,Log-mel,"23,668",Conventional compact CNN
+DS-CNN,Log-mel,"6,244",Depthwise-separable efficiency
+TC-ResNet8,Log-mel,"64,788",Temporal residual modelling
+CNN–LSTM,Log-mel,"13,428",Convolution and recurrence
+MosquitoSong-style 1D,Waveform,"18,292",Learned signal representation
+BC-ResNet1,Log-mel,"8,968",Efficient residual audio model
+MicroDSC-style,Log-mel,"6,708",Small depthwise model

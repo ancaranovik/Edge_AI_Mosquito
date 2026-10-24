@@ -1,0 +1,9 @@
+Model,Train recall (%),D1 recall (%),D1 clips called minimus
+Spectral RF,100.00,0.00,67
+Small CNN,100.00,0.00,67
+DS-CNN,100.00,0.00,67
+TC-ResNet8,99.93,0.00,63
+CNN–LSTM,99.85,0.00,67
+MosquitoSong-style 1D,99.64,0.00,67
+BC-ResNet1,100.00,0.00,67
+MicroDSC-style,100.00,0.00,67

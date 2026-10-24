@@ -1,0 +1,9 @@
+Audit quantity,Count
+Train–validation pairs rechecked,69
+Pairs with absolute r >= 0.995,68
+Pairs with absolute r >= 0.999,39
+Implicated training clips (at least),46
+Implicated validation clips,44
+Validation windows fully within verified overlaps,471
+Validation windows intersecting verified overlaps,519
+All windows in implicated validation clips,"2,587"

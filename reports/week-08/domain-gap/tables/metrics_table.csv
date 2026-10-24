@@ -1,0 +1,9 @@
+Model,A_v1 clip F1 (%),A_v2 clip F1 (%),A_v2 window F1 (%)
+Spectral RF,64.23,95.77,94.37
+Small CNN,64.75,96.36,92.14
+DS-CNN,64.75,96.36,94.53
+TC-ResNet8,63.95,96.94,93.73
+CNN–LSTM,64.75,96.36,90.79
+MosquitoSong-style 1D,64.23,96.35,89.28
+BC-ResNet1,65.32,96.94,94.66
+MicroDSC-style,64.75,96.36,93.96

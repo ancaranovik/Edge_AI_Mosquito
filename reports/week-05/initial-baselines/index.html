@@ -1,0 +1,3015 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.11" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Week 5 — Initial Baselines and Experimental Review</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body><nav aria-label="Report archive"><a href="../../../">← Report archive</a></nav>
+<header id="title-block-header">
+<h1 class="title">Week 5 — Initial Baselines and Experimental
+Review</h1>
+<div class="abstract">
+<div class="abstract-title">Abstract</div>
+<p>This project investigates acoustic classification of four mosquito
+taxa using compact models for Edge AI. Rather than starting with a large
+model or optimizing a single aggregate score, the team established a
+traceable workflow: selecting data from a HumBugDB release, partitioning
+original recordings before window extraction, validating window geometry
+and features, comparing two frontends on the same population, and
+conducting controlled training experiments. Each run has a unique
+identifier, configuration, checkpoint, training history, predictions,
+confusion matrix, and records of its code version, runtime, and
+inputs.</p>
+<p>The current Core contains 1,898 clips from 1,189 source recordings.
+Example Grid v2 produces 32,645 windows: 22,613 TRAIN, 4,937 validation,
+and 5,095 TEST. Both branches share identifiers, labels, timestamps, and
+partitions. Branch 03A uses a VGGish-style reference log-mel transform
+with a
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>96</mn><mo>×</mo><mn>64</mn></mrow><annotation encoding="application/x-tex">96\times64</annotation></semantics></math>
+tensor; 03B uses the pinned Edge Impulse Python MFE implementation with
+a
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>96</mn><mo>×</mo><mn>40</mn></mrow><annotation encoding="application/x-tex">96\times40</annotation></semantics></math>
+tensor. Small CNN, DS-CNN, TC-ResNet8, and CNN-LSTM are trained from
+scratch.</p>
+<p>Performance did not improve monotonically. A lower learning rate did
+not improve the strongest model; normalization using TRAIN statistics
+benefited some configurations; and weaker class weighting changed the
+minority-class precision–recall trade-off. The highest observed
+single-window result was obtained by exp007: DS-CNN/03A with 6,244
+parameters, Adam learning rate 0.001, TRAIN-global z-score
+normalization, class-weight exponent 0.75, no augmentation, and zero
+weight decay. It achieved validation Window macro-F1 of 60.97%, Source
+macro-F1 of 74.89%, and TRAIN-eval macro-F1 of 74.31%. Neither the
+weight decay tested in exp008 nor the time masking tested in exp010
+surpassed this configuration.</p>
+<p>Exp009 did not train a new model. Averaging probabilities from two
+consecutive windows within the same clip increased macro-F1 from 61.32%
+on the retained single windows to 64.90% on 2,389 pairs, using 1.935
+seconds of audio. The improvement was 3.58 percentage points, with a 95%
+source-bootstrap interval of [2.22, 4.85] points. This supports further
+development of fixed-duration aggregation, but is not a single-window
+result and should not be compared with the original model as if both had
+the same latency.</p>
+<p>The report retains exp007 as the reference configuration and exp009
+as an aggregation option supported by validation results. Remaining
+limitations include the small number of Squamosus sources, source and
+acquisition variability, repeated tuning on the same validation set, a
+single training seed, and the absence of independent deployment-domain
+evaluation. Historical baseline TEST results were previously reported;
+development experiments exp002–exp010 did not evaluate TEST. The
+validation scores are therefore not presented as confirmed final
+generalization results.</p>
+</div>
+<p>VGU · Edge AI · Week 5 · Initial baseline experiments</p><p>This web edition reproduces the existing first experimental report, including exp001–exp010 and its appendices. Weeks 1–4 were the proposal stage.</p></header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#scope-of-evidence-and-use-of-this-report"
+id="toc-scope-of-evidence-and-use-of-this-report">Scope of Evidence and
+Use of This Report</a></li>
+<li><a href="#research-objectives-and-problem-definition"
+id="toc-research-objectives-and-problem-definition">Research Objectives
+and Problem Definition</a>
+<ul>
+<li><a href="#motivation-and-research-questions"
+id="toc-motivation-and-research-questions">Motivation and research
+questions</a></li>
+<li><a href="#inputs-and-outputs" id="toc-inputs-and-outputs">Inputs and
+outputs</a></li>
+<li><a href="#completed-objectives-and-selection-criteria"
+id="toc-completed-objectives-and-selection-criteria">Completed
+objectives and selection criteria</a></li>
+<li><a href="#terminology-and-interpretation-of-tables"
+id="toc-terminology-and-interpretation-of-tables">Terminology and
+interpretation of tables</a></li>
+</ul></li>
+<li><a href="#data-selection-provenance-rationale-and-limitations"
+id="toc-data-selection-provenance-rationale-and-limitations">Data
+Selection: Provenance, Rationale, and Limitations</a>
+<ul>
+<li><a href="#from-release-metadata-to-the-core"
+id="toc-from-release-metadata-to-the-core">From release metadata to the
+Core</a></li>
+<li><a href="#sources-clips-and-windows-are-distinct-units"
+id="toc-sources-clips-and-windows-are-distinct-units">Sources, clips,
+and windows are distinct units</a></li>
+<li><a href="#imbalance-and-acquisition-method"
+id="toc-imbalance-and-acquisition-method">Imbalance and acquisition
+method</a></li>
+</ul></li>
+<li><a href="#partitioning-and-data-audit-before-training"
+id="toc-partitioning-and-data-audit-before-training">Partitioning and
+Data Audit Before Training</a>
+<ul>
+<li><a href="#source-partitioning-before-segmentation"
+id="toc-source-partitioning-before-segmentation">Source partitioning
+before segmentation</a></li>
+<li><a href="#completed-checks-and-the-meaning-of-pass"
+id="toc-completed-checks-and-the-meaning-of-pass">Completed checks and
+the meaning of PASS</a></li>
+</ul></li>
+<li><a href="#waveform-processing-and-example-grid-v2"
+id="toc-waveform-processing-and-example-grid-v2">Waveform Processing and
+Example Grid v2</a>
+<ul>
+<li><a href="#conversion-and-resampling"
+id="toc-conversion-and-resampling">Conversion and resampling</a></li>
+<li><a href="#why-use-a-0.96-second-stride-and-a-0.975-second-context"
+id="toc-why-use-a-0.96-second-stride-and-a-0.975-second-context">Why use
+a 0.96-second stride and a 0.975-second context?</a></li>
+<li><a href="#maintaining-a-fair-frontend-comparison"
+id="toc-maintaining-a-fair-frontend-comparison">Maintaining a fair
+frontend comparison</a></li>
+</ul></li>
+<li><a href="#frontends-03a-and-03b-methods-verification-and-trade-offs"
+id="toc-frontends-03a-and-03b-methods-verification-and-trade-offs">Frontends
+03A and 03B: Methods, Verification, and Trade-offs</a>
+<ul>
+<li><a href="#a-vggish-style-reference-log-mel"
+id="toc-a-vggish-style-reference-log-mel">03A: VGGish-style reference
+log-mel</a></li>
+<li><a href="#b-pinned-mfe-implementation"
+id="toc-b-pinned-mfe-implementation">03B: pinned MFE
+implementation</a></li>
+<li><a href="#rationale-for-the--70-db-noise-floor"
+id="toc-rationale-for-the--70-db-noise-floor">Rationale for the -70 dB
+noise floor</a></li>
+<li><a href="#interpreting-the-advantage-of-03a"
+id="toc-interpreting-the-advantage-of-03a">Interpreting the advantage of
+03A</a></li>
+</ul></li>
+<li><a href="#model-architectures-and-training-protocol"
+id="toc-model-architectures-and-training-protocol">Model Architectures
+and Training Protocol</a>
+<ul>
+<li><a href="#architectures-and-comparison-rationale"
+id="toc-architectures-and-comparison-rationale">Architectures and
+comparison rationale</a></li>
+<li><a href="#fixed-components" id="toc-fixed-components">Fixed
+components</a></li>
+<li><a href="#weighted-cross-entropy-and-minority-class-trade-offs"
+id="toc-weighted-cross-entropy-and-minority-class-trade-offs">Weighted
+cross-entropy and minority-class trade-offs</a></li>
+<li><a href="#train-global-normalization"
+id="toc-train-global-normalization">TRAIN-global normalization</a></li>
+</ul></li>
+<li><a href="#notebook-pipeline-runtime-and-result-management"
+id="toc-notebook-pipeline-runtime-and-result-management">Notebook
+Pipeline, Runtime, and Result Management</a>
+<ul>
+<li><a href="#responsibilities-of-each-notebook"
+id="toc-responsibilities-of-each-notebook">Responsibilities of each
+notebook</a></li>
+<li><a href="#github-for-code-drive-for-fixed-inputs-and-outputs"
+id="toc-github-for-code-drive-for-fixed-inputs-and-outputs">GitHub for
+code; Drive for fixed inputs and outputs</a></li>
+<li><a href="#experiment-identifiers-and-integrity"
+id="toc-experiment-identifiers-and-integrity">Experiment identifiers and
+integrity</a></li>
+</ul></li>
+<li><a href="#evaluation-metrics-checkpoints-and-uncertainty"
+id="toc-evaluation-metrics-checkpoints-and-uncertainty">Evaluation:
+Metrics, Checkpoints, and Uncertainty</a>
+<ul>
+<li><a href="#macro-f1-alongside-accuracy"
+id="toc-macro-f1-alongside-accuracy">Macro-F1 alongside
+accuracy</a></li>
+<li><a href="#window-and-source-f1-are-not-interchangeable"
+id="toc-window-and-source-f1-are-not-interchangeable">Window and Source
+F1 are not interchangeable</a></li>
+<li><a href="#checkpoint-selection-and-stopping"
+id="toc-checkpoint-selection-and-stopping">Checkpoint selection and
+stopping</a></li>
+<li><a href="#test-history-and-repeated-validation-tuning"
+id="toc-test-history-and-repeated-validation-tuning">TEST history and
+repeated validation tuning</a></li>
+<li><a href="#source-bootstrap-intervals"
+id="toc-source-bootstrap-intervals">Source-bootstrap intervals</a></li>
+</ul></li>
+<li><a href="#experimental-record-observations-decisions-and-results"
+id="toc-experimental-record-observations-decisions-and-results">Experimental
+Record: Observations, Decisions, and Results</a>
+<ul>
+<li><a href="#overview" id="toc-overview">Overview</a></li>
+<li><a href="#exp001002-baseline-and-revised-checkpoint-selection"
+id="toc-exp001002-baseline-and-revised-checkpoint-selection">Exp001–002:
+baseline and revised checkpoint selection</a></li>
+<li><a href="#exp003-a-lower-learning-rate-did-not-help-every-model"
+id="toc-exp003-a-lower-learning-rate-did-not-help-every-model">Exp003: a
+lower learning rate did not help every model</a></li>
+<li><a href="#exp004-normalization-helped-selected-configurations"
+id="toc-exp004-normalization-helped-selected-configurations">Exp004:
+normalization helped selected configurations</a></li>
+<li><a href="#exp005-lower-lr-benefited-small-cnn-but-not-ds-cnn"
+id="toc-exp005-lower-lr-benefited-small-cnn-but-not-ds-cnn">Exp005:
+lower LR benefited Small CNN but not DS-CNN</a></li>
+<li><a
+href="#exp006-weaker-weighting-reduced-false-positives-but-recall-fell"
+id="toc-exp006-weaker-weighting-reduced-false-positives-but-recall-fell">Exp006:
+weaker weighting reduced false positives but recall fell</a></li>
+<li><a href="#exp007-retained-development-configuration"
+id="toc-exp007-retained-development-configuration">Exp007: retained
+development configuration</a></li>
+<li><a href="#exp008-an-informative-negative-result"
+id="toc-exp008-an-informative-negative-result">Exp008: an informative
+negative result</a></li>
+<li><a href="#exp009-additional-temporal-evidence-without-retraining"
+id="toc-exp009-additional-temporal-evidence-without-retraining">Exp009:
+additional temporal evidence without retraining</a></li>
+<li><a
+href="#exp010-the-tested-time-masking-did-not-improve-performance"
+id="toc-exp010-the-tested-time-masking-did-not-improve-performance">Exp010:
+the tested time masking did not improve performance</a></li>
+<li><a href="#have-the-beneficial-changes-already-been-combined"
+id="toc-have-the-beneficial-changes-already-been-combined">Have the
+beneficial changes already been combined?</a></li>
+</ul></li>
+<li><a href="#detailed-results-for-the-exp007-reference-configuration"
+id="toc-detailed-results-for-the-exp007-reference-configuration">Detailed
+Results for the exp007 Reference Configuration</a>
+<ul>
+<li><a href="#comparison-of-all-eight-configurations"
+id="toc-comparison-of-all-eight-configurations">Comparison of all eight
+configurations</a></li>
+<li><a href="#per-class-metrics-and-confusion-for-ds-cnn03a"
+id="toc-per-class-metrics-and-confusion-for-ds-cnn03a">Per-class metrics
+and confusion for DS-CNN/03A</a></li>
+<li><a href="#learning-histories-and-the-generalization-gap"
+id="toc-learning-histories-and-the-generalization-gap">Learning
+histories and the generalization gap</a></li>
+</ul></li>
+<li><a href="#sec:aggregation" id="toc-sec:aggregation">Exp009:
+Fixed-Duration Two-Window Aggregation</a>
+<ul>
+<li><a href="#method-and-population"
+id="toc-method-and-population">Method and population</a></li>
+<li><a href="#interpretation-and-implications-for-model-development"
+id="toc-interpretation-and-implications-for-model-development">Interpretation
+and implications for model development</a></li>
+</ul></li>
+<li><a href="#experimental-integrity-and-performance-diagnostics"
+id="toc-experimental-integrity-and-performance-diagnostics">Experimental
+Integrity and Performance Diagnostics</a>
+<ul>
+<li><a href="#issues-examined" id="toc-issues-examined">Issues
+examined</a></li>
+<li><a href="#train-signal-audits-noise-is-not-a-sufficient-explanation"
+id="toc-train-signal-audits-noise-is-not-a-sufficient-explanation">TRAIN
+signal audits: noise is not a sufficient explanation</a></li>
+<li><a href="#hypotheses-and-falsifiable-diagnostics"
+id="toc-hypotheses-and-falsifiable-diagnostics">Hypotheses and
+falsifiable diagnostics</a></li>
+</ul></li>
+<li><a href="#lessons-from-related-research"
+id="toc-lessons-from-related-research">Lessons from Related Research</a>
+<ul>
+<li><a
+href="#humbugdb-provenance-and-protocol-rather-than-headline-scores"
+id="toc-humbugdb-provenance-and-protocol-rather-than-headline-scores">HumBugDB:
+provenance and protocol rather than headline scores</a></li>
+<li><a
+href="#tinyml-mosquito-prototypes-establishing-deployment-evidence"
+id="toc-tinyml-mosquito-prototypes-establishing-deployment-evidence">TinyML
+mosquito prototypes: establishing deployment evidence</a></li>
+<li><a href="#compact-architectures-and-masking"
+id="toc-compact-architectures-and-masking">Compact architectures and
+masking</a></li>
+<li><a href="#distinction-from-synthetic-swarm-classification"
+id="toc-distinction-from-synthetic-swarm-classification">Distinction
+from synthetic swarm classification</a></li>
+</ul></li>
+<li><a href="#retained-results-remaining-work-and-decision-criteria"
+id="toc-retained-results-remaining-work-and-decision-criteria">Retained
+Results, Remaining Work, and Decision Criteria</a>
+<ul>
+<li><a href="#configuration-retained-at-the-reporting-date"
+id="toc-configuration-retained-at-the-reporting-date">Configuration
+retained at the reporting date</a></li>
+<li><a href="#minimal-next-sequence-proposed-not-completed"
+id="toc-minimal-next-sequence-proposed-not-completed">Minimal next
+sequence: proposed, not completed</a></li>
+</ul></li>
+<li><a href="#conclusion" id="toc-conclusion">Conclusion</a></li>
+<li><a href="#app:matrix" id="toc-app:matrix">Complete Result Matrices
+Across Experiments</a>
+<ul>
+<li><a href="#validation-window-macro-f1"
+id="toc-validation-window-macro-f1">Validation Window macro-F1</a></li>
+<li><a href="#validation-source-macro-f1"
+id="toc-validation-source-macro-f1">Validation Source macro-F1</a></li>
+<li><a href="#targeted-exp010" id="toc-targeted-exp010">Targeted
+exp010</a></li>
+</ul></li>
+<li><a href="#reference-conditions-and-configuration-identities"
+id="toc-reference-conditions-and-configuration-identities">Reference
+Conditions and Configuration Identities</a></li>
+<li><a href="#evidence-records-and-traceability"
+id="toc-evidence-records-and-traceability">Evidence Records and
+Traceability</a>
+<ul>
+<li><a href="#sources-of-reported-results"
+id="toc-sources-of-reported-results">Sources of reported
+results</a></li>
+<li><a href="#identifiers-for-locating-the-correct-versions"
+id="toc-identifiers-for-locating-the-correct-versions">Identifiers for
+locating the correct versions</a></li>
+<li><a href="#retrieving-results-without-training"
+id="toc-retrieving-results-without-training">Retrieving results without
+training</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 class="unnumbered"
+id="scope-of-evidence-and-use-of-this-report">Scope of Evidence and Use
+of This Report</h1>
+<p>This report draws on the current source code, frozen manifests and
+audits, experiment configurations, saved notebook outputs, and analysis
+artifacts available as of October 3, 2026. Preparation involved reading
+these records only: no training, checkpoint inference, feature
+regeneration, relabelling, or repartitioning was performed. Tables
+distinguish three evaluation units: windows, two-window pairs, and
+source recordings. Unless explicitly labelled as accuracy, precision, or
+recall, percentages in metric tables denote macro-F1; differences are
+expressed in percentage points.</p>
+<p>Verification coverage differs between experiments. Exp001 has
+baseline records; exp002–006 were checked against preserved notebook
+outputs, supplemented by prediction audits for selected models in
+exp004–007. Complete artifacts for exp007 and exp008 were downloaded for
+analysis, covering 16 runs, histories, predictions, confusion matrices,
+configurations, logs, and checkpoint hashes. Exp009 has diagnostic
+output in 04C and a specified bootstrap procedure. Exp010 is represented
+by its saved 04D results table; per-class metrics and learning-curve
+behaviour are not inferred where the relevant artifacts were unavailable
+for review.</p>
+<p>University, course, instructor, and team details were supplied by the
+team. The faculty designation follows the template: <em>Faculty of
+Engineering – Computer Science Program</em>. No logo, signature, or
+unconfirmed individual contribution statement was fabricated. AI tools
+assisted with reviewing records, organizing the argument, and drafting
+LaTeX; scientific results originate from the project’s experimental
+records, not AI-generated data. The team should review and verify the
+report and remains responsible for its content before submission.</p>
+<h1 id="research-objectives-and-problem-definition">Research Objectives
+and Problem Definition</h1>
+<h2 id="motivation-and-research-questions">Motivation and research
+questions</h2>
+<p>Mosquito wingbeat sounds provide a signal that can be studied using
+acoustic sensors and machine-learning models. For an Edge AI project, a
+high score alone is insufficient: the pipeline also requires a
+manageable model size, clearly specified features, documented data
+provenance, and meaningful evaluation. This phase establishes the AI
+foundation before assessing on-device deployment. Deferring ESP32
+implementation helps distinguish recognition errors from frontend
+conversion, quantization, or hardware-runtime errors.</p>
+<p>The main questions are which frontend and compact architecture best
+distinguish four mosquito taxa in source-partitioned recordings, which
+preprocessing and training changes are beneficial, and whether observing
+an adjacent audio interval improves decisions. These questions are
+examined through a controlled 03A–03B comparison, a series of ablations
+with explicit reference conditions, and a probability-aggregation
+diagnostic.</p>
+<h2 id="inputs-and-outputs">Inputs and outputs</h2>
+<p>Inputs are clips with metadata <code>sound_type=mosquito</code>,
+<code>plurality=Single</code>, and one of the four selected labels. Each
+context is transformed into a time–frequency tensor. The model returns
+four logits, and softmax produces the probability vector
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>c</mi><mo>∣</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p(c\mid x)</annotation></semantics></math>.
+The single-window decision is
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>y</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mrow><mi mathvariant="normal">arg</mi><mo>&#8289;</mo></mrow><munder><mi mathvariant="normal">max</mi><mrow><mi>c</mi><mo>∈</mo><mo stretchy="false" form="prefix">{</mo><mrow><mi mathvariant="normal">A</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">a</mi><mo mathvariant="normal">,</mo><mi mathvariant="normal">F</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mo mathvariant="normal">,</mo><mi mathvariant="normal">S</mi><mi mathvariant="normal">q</mi><mi mathvariant="normal">u</mi><mo mathvariant="normal">,</mo><mi mathvariant="normal">C</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">x</mi></mrow><mo stretchy="false" form="postfix">}</mo></mrow></munder><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>c</mi><mo>∣</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">\begin{equation}
+\widehat y(x)=\arg\max_{c\in\{\mathrm{Ara,Fun,Squ,Cpx}\}}p(c\mid x).
+\end{equation}</annotation></semantics></math> Ara denotes <em>An.
+arabiensis</em>, Fun denotes <em>An. funestus</em> s.s., Squ denotes
+<em>An. squamosus</em>, and Cpx denotes <em>Culex pipiens</em> complex.
+Since one label is a species complex, the task is more accurately
+described as classification of four taxa or taxonomic groups than of
+four fully resolved species.</p>
+<p>This is a <strong>closed-set, single-label classification</strong>
+task. The metadata value “Single” restricts recording plurality; it does
+not establish that every window contains clear wingbeats or has
+comparable SNR. The pipeline has no background/noise label, unknown
+class, rejection mechanism, or “no mosquito” output. It should therefore
+not be interpreted as a mosquito detector for arbitrary environmental
+audio. Multi-label swarm detection, mosquito counting, and field
+population surveys are also outside the evaluation reported here.</p>
+<h2 id="completed-objectives-and-selection-criteria">Completed
+objectives and selection criteria</h2>
+<p>The completed objectives were to establish a reproducible data
+foundation, compare two frontends on identical windows, train compact
+models under a declared budget, preserve and verify results by
+experiment, and identify a suitable development configuration. From
+protocol v2 onward, the primary criterion is validation Window macro-F1
+at the selected checkpoint. Source macro-F1, per-class
+precision/recall/F1, TRAIN-eval, and confusion matrices provide
+supporting evidence; they do not replace the primary criterion after
+results are observed.</p>
+<p>The longer-term objective is an Edge AI model. A low parameter count
+identifies a potentially small model footprint, but does not demonstrate
+operator compatibility, peak RAM, latency, energy use, or INT8 accuracy
+on ESP32. Likewise, a source-level validation score of 70–80% does not
+imply 70–80% single-window F1 or successful mosquito detection under
+deployment conditions.</p>
+<h2 id="terminology-and-interpretation-of-tables">Terminology and
+interpretation of tables</h2>
+<table>
+<caption>Terminology used throughout the report.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Term</th>
+<th style="text-align: left;">Meaning in this project</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Core</td>
+<td style="text-align: left;">Dataset subset with membership selected
+and frozen using metadata.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Source / clip / window</td>
+<td style="text-align: left;">Original recording / labelled metadata
+segment / short context used to construct an example.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Frontend / feature</td>
+<td style="text-align: left;">Waveform-to-time–frequency transform /
+resulting feature tensor.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cache</td>
+<td style="text-align: left;">Precomputed, validated features retained
+for reuse during training.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Epoch / checkpoint</td>
+<td style="text-align: left;">One pass through TRAIN / model state saved
+during training.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Loss / macro-F1</td>
+<td style="text-align: left;">Training objective / equally weighted
+four-class metric used for checkpoint selection.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Ablation / control</td>
+<td style="text-align: left;">Experiment changing one principal factor /
+corresponding reference configuration.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Seed / runtime</td>
+<td style="text-align: left;">Declared initial random state / software
+and hardware execution environment.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Validation / TEST</td>
+<td style="text-align: left;">Development and selection partition /
+final-evaluation partition under the protocol.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Aggregation / pp</td>
+<td style="text-align: left;">Combining probability vectors / percentage
+points, distinct from relative percentage improvement.</td>
+</tr>
+</tbody>
+</table>
+<h1 id="data-selection-provenance-rationale-and-limitations">Data
+Selection: Provenance, Rationale, and Limitations</h1>
+<h2 id="from-release-metadata-to-the-core">From release metadata to the
+Core</h2>
+<p>The project uses HumBugDB metadata release
+<code>neurips_2021_zenodo_0_0_1.csv</code>, containing 9,295 rows in the
+local copy. HumBugDB provides mosquito audio and metadata for
+classification and event detection; its paper and repository document
+provenance [1, 2]. The local audio collection described in the
+provenance records contains 2,694 WAV files, of which the experimental
+Core selects 1,898 clips. These counts describe three different
+populations, not inconsistent counts of the same set.</p>
+<p>The Core was reconstructed using explicit filters:
+<code>sound_type=mosquito</code>, <code>plurality=Single</code>,
+<code>sample_rate=44100</code>, and <code>species</code> restricted to
+four predefined labels. Membership was checked against canonical files
+using exact identifiers and metadata; samples were not reselected
+according to prediction outcomes. The four classes provide a tractable
+setting for studying imbalance and taxonomic confusion within a shared
+recording framework while limiting initial development complexity.</p>
+<p>The filters reduce variation in plurality and sample rate but do not
+balance source counts, equalize capture methods, guarantee high SNR, or
+biologically revalidate labels. All current Core records specify Telinga
+microphones, Tascam recorders, and Tanzania/Morogoro/Kilombero District
+geography. These are observed Core properties, not additional filters or
+evidence of transfer to an ESP32 microphone in Vietnam.</p>
+<table id="tab:core">
+<caption>Core population from the canonical manifest. Total duration
+measures labelled clip length, not independent biological sample
+count.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Label</th>
+<th style="text-align: right;">Clips</th>
+<th style="text-align: right;">Sources</th>
+<th style="text-align: right;">Total duration (seconds)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><em>An. arabiensis</em></td>
+<td style="text-align: right;">831</td>
+<td style="text-align: right;">514</td>
+<td style="text-align: right;">14,815.20</td>
+</tr>
+<tr>
+<td style="text-align: left;"><em>An. funestus</em> s.s.</td>
+<td style="text-align: right;">381</td>
+<td style="text-align: right;">248</td>
+<td style="text-align: right;">7,414.24</td>
+</tr>
+<tr>
+<td style="text-align: left;"><em>An. squamosus</em></td>
+<td style="text-align: right;">141</td>
+<td style="text-align: right;">91</td>
+<td style="text-align: right;">2,091.80</td>
+</tr>
+<tr>
+<td style="text-align: left;"><em>Culex pipiens</em> complex</td>
+<td style="text-align: right;">545</td>
+<td style="text-align: right;">336</td>
+<td style="text-align: right;">8,157.76</td>
+</tr>
+<tr>
+<td style="text-align: left;">Total</td>
+<td style="text-align: right;">1,898</td>
+<td style="text-align: right;">1,189</td>
+<td style="text-align: right;">32,479.00</td>
+</tr>
+</tbody>
+</table>
+<h2 id="sources-clips-and-windows-are-distinct-units">Sources, clips,
+and windows are distinct units</h2>
+<p>The <code>name</code> field identifies an original recording,
+<code>id</code> identifies a labelled metadata clip, and
+<code>example_uid</code> identifies a grid window. One source may
+contain several clips and many windows. Thousands of windows do not
+constitute thousands of independent recordings or individuals. This
+distinction underlies partitioning, prediction aggregation, and
+source-based uncertainty estimation.</p>
+<p>Grouping by source name prevents related clips and windows from
+crossing partitions. It does not establish independence of mosquito
+individuals, recording sessions, or all acquisition factors. The
+exp007/008 analysis records show 41 recording dates shared across all
+three partitions. The benchmark is therefore source-name-disjoint within
+the Core, rather than session-held-out, date-held-out, or
+cross-domain.</p>
+<h2 id="imbalance-and-acquisition-method">Imbalance and acquisition
+method</h2>
+<p>Squ has only 91 sources across the Core, compared with 514 for Ara;
+TRAIN contains 63 and 359, respectively. This disparity makes macro-F1
+and per-class metrics necessary alongside accuracy. The project retains
+the observed Core distribution rather than duplicating samples or
+removing majority-class data to produce a superficially balanced
+table.</p>
+<p>Core metadata contain 1,226 LT clips, 669 HBN clips, and 3 LC clips.
+HBN denotes human-baited nets, LT light traps, and LC larval collections
+[1]. These describe capture methods, not measured noise labels; HBN and
+LT should not automatically be treated as distinct SNR domains. Table 3
+shows associations between species and method: TRAIN Squ sources are
+exclusively LT. This presents a confounding and coverage limitation.</p>
+<table id="tab:method">
+<caption>TRAIN source counts by label and capture method. Counts refer
+to sources, not windows.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Label</th>
+<th style="text-align: right;">HBN</th>
+<th style="text-align: right;">LT</th>
+<th style="text-align: right;">LC</th>
+<th style="text-align: right;">Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Ara</td>
+<td style="text-align: right;">113</td>
+<td style="text-align: right;">246</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">359</td>
+</tr>
+<tr>
+<td style="text-align: left;">Fun</td>
+<td style="text-align: right;">33</td>
+<td style="text-align: right;">140</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">173</td>
+</tr>
+<tr>
+<td style="text-align: left;">Squ</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">63</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">63</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cpx</td>
+<td style="text-align: right;">116</td>
+<td style="text-align: right;">118</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">235</td>
+</tr>
+</tbody>
+</table>
+<h1 id="partitioning-and-data-audit-before-training">Partitioning and
+Data Audit Before Training</h1>
+<h2 id="source-partitioning-before-segmentation">Source partitioning
+before segmentation</h2>
+<p>The reproducible procedure partitions sources within each species,
+targeting 70% TRAIN, 15% validation, and the remainder TEST, with seed
+42. It also records source encounter order, species order, and the
+global RNG. Thus, “random split, seed 42” alone is insufficient to
+reproduce exact assignments. Clip and window proportions need not equal
+70/15/15 because sources differ in duration and clip count.</p>
+<p>Notebook 00 reconstructs the Core and split in memory and checks them
+against accepted files and reproduction records.
+<code>WRITE_CANONICAL=False</code> prevents canonical artifacts from
+being rewritten during routine checks. Notebook 01 independently
+validates required metadata, exact parent mappings, source isolation,
+and all WAV headers and durations. Nullable release fields, such as
+recording date, are not turned into arbitrary exclusion criteria.</p>
+<table id="tab:split">
+<caption>Counts by evaluation unit and partition. Segmentation inherits
+source assignments.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Unit</th>
+<th style="text-align: right;">TRAIN</th>
+<th style="text-align: right;">Validation</th>
+<th style="text-align: right;">TEST</th>
+<th style="text-align: right;">Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Source</td>
+<td style="text-align: right;">830</td>
+<td style="text-align: right;">177</td>
+<td style="text-align: right;">182</td>
+<td style="text-align: right;">1,189</td>
+</tr>
+<tr>
+<td style="text-align: left;">Clip</td>
+<td style="text-align: right;">1,335</td>
+<td style="text-align: right;">269</td>
+<td style="text-align: right;">294</td>
+<td style="text-align: right;">1,898</td>
+</tr>
+<tr>
+<td style="text-align: left;">Window</td>
+<td style="text-align: right;">22,613</td>
+<td style="text-align: right;">4,937</td>
+<td style="text-align: right;">5,095</td>
+<td style="text-align: right;">32,645</td>
+</tr>
+</tbody>
+</table>
+<table id="tab:support">
+<caption>Class support at window and source levels; parentheses give
+source counts.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Label</th>
+<th style="text-align: right;">TRAIN</th>
+<th style="text-align: right;">Validation</th>
+<th style="text-align: right;">TEST</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Ara</td>
+<td style="text-align: right;">10,457 (359)</td>
+<td style="text-align: right;">2,220 (77)</td>
+<td style="text-align: right;">2,232 (78)</td>
+</tr>
+<tr>
+<td style="text-align: left;">Fun</td>
+<td style="text-align: right;">5,128 (173)</td>
+<td style="text-align: right;">1,120 (37)</td>
+<td style="text-align: right;">1,239 (38)</td>
+</tr>
+<tr>
+<td style="text-align: left;">Squ</td>
+<td style="text-align: right;">1,426 (63)</td>
+<td style="text-align: right;">295 (13)</td>
+<td style="text-align: right;">371 (15)</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cpx</td>
+<td style="text-align: right;">5,602 (235)</td>
+<td style="text-align: right;">1,302 (50)</td>
+<td style="text-align: right;">1,253 (51)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="completed-checks-and-the-meaning-of-pass">Completed checks and
+the meaning of PASS</h2>
+<p>The audit confirms 1,898 unique Core IDs and 1,189 sources, no
+source-name leakage, and complete WAV availability. All Core files are
+44.1 kHz mono PCM24, with metadata-duration discrepancies no greater
+than 10 ms. Reconstructed split assignments match the canonical records.
+Manifests, partitions, and WAV inventories are bound by SHA256 before
+feature extraction.</p>
+<p>A technical PASS means that files, geometry, metadata, and byte
+identities satisfy the contract. It does not prove biological label
+correctness, clear mosquito activity in every window, session
+independence, or the absence of perceptually similar recordings.
+Inventory hashes reveal no exact duplicate WAV files, but byte-level
+checks do not replace signal-overlap or individual/session-independence
+analysis.</p>
+<p>Partitioning before window extraction is deliberate. Randomly
+splitting windows after segmentation can place neighbouring wingbeats
+and background sounds from the same source in both TRAIN and validation.
+The current pipeline prevents this at source-name level. Future dataset,
+segmentation, or frontend changes require a new version; existing
+partitions must not be changed merely to improve scores.</p>
+<h1 id="waveform-processing-and-example-grid-v2">Waveform Processing and
+Example Grid v2</h1>
+<h2 id="conversion-and-resampling">Conversion and resampling</h2>
+<p>SciPy reads native PCM24 audio as left-justified int32 values, which
+are divided by
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>2</mn><mn>31</mn></msup><annotation encoding="application/x-tex">2^{31}</annotation></semantics></math>
+to obtain float64. Both frontends resample entire clips from 44,100 to
+16,000 Hz using <code>resample_poly</code>, ratio
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>160</mn><mi>/</mi><mn>441</mn></mrow><annotation encoding="application/x-tex">160/441</annotation></semantics></math>,
+Kaiser parameter 5.0, and zero-valued constant boundary extension. The
+target length is
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mrow><mn>16</mn><mi>k</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">⌈</mo><msub><mi>N</mi><mrow><mi>n</mi><mi>a</mi><mi>t</mi><mi>i</mi><mi>v</mi><mi>e</mi></mrow></msub><mfrac><mn>160</mn><mn>441</mn></mfrac><mo stretchy="true" form="postfix">⌉</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">\begin{equation}
+N_{16k}=\left\lceil N_{native}\frac{160}{441}\right\rceil.
+\end{equation}</annotation></semantics></math> Resampling before
+extracting contexts defines a common target sample sequence. The frozen
+waveform preprocessing applies no peak/RMS normalization, denoising,
+silence removal, or activity gate. Constant extension within the
+resampler is not completion padding for examples lacking a full
+context.</p>
+<p>Notebook 02 uses a float32 path to validate geometry, finite support,
+and expected resampled length. It does not supply feature-input
+waveforms to 03A/03B and is not claimed to be bitwise equivalent to
+their float64 path. These distinct purposes separate geometric
+validation from stronger claims of numerical parity.</p>
+<h2 id="why-use-a-0.96-second-stride-and-a-0.975-second-context">Why use
+a 0.96-second stride and a 0.975-second context?</h2>
+<p>Each example starts at sample
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>s</mi><mi>i</mi></msub><mo>=</mo><mi>i</mi><mo>×</mo><mn>15</mn><mo>,</mo><mn>360</mn></mrow><annotation encoding="application/x-tex">s_i=i\times15{,}360</annotation></semantics></math>.
+The reference context contains 15,600 samples, or 0.975 seconds at
+16 kHz. With a 400-sample frame and 160-sample hop, the number of
+complete frames is
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>1</mn><mo>+</mo><mrow><mo stretchy="true" form="prefix">⌊</mo><mfrac><mrow><mn>15</mn><mo>,</mo><mn>600</mn><mo>−</mo><mn>400</mn></mrow><mn>160</mn></mfrac><mo stretchy="true" form="postfix">⌋</mo></mrow><mo>=</mo><mn>96</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">\begin{equation}
+T=1+\left\lfloor\frac{15,600-400}{160}\right\rfloor=96.
+\end{equation}</annotation></semantics></math> A 15,360-sample stride
+corresponds to 0.96 seconds. Adjacent contexts share 240 samples, or
+15 ms, although their reference feature-frame groups do not repeat frame
+starts. The audio contexts are therefore not entirely
+non-overlapping.</p>
+<table>
+<caption>Segmentation contract shared by both branches.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Property</th>
+<th style="text-align: left;">Value and interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Target sample rate</td>
+<td style="text-align: left;">16,000 Hz</td>
+</tr>
+<tr>
+<td style="text-align: left;">Example stride</td>
+<td style="text-align: left;">15,360 sample = 0.96 s</td>
+</tr>
+<tr>
+<td style="text-align: left;">Reference context</td>
+<td style="text-align: left;">15,600 sample = 0.975 s</td>
+</tr>
+<tr>
+<td style="text-align: left;">Example ID</td>
+<td
+style="text-align: left;"><code>gridv2_&lt;clip_id&gt;_e&lt;index&gt;</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Eligibility</td>
+<td style="text-align: left;">Complete contexts only; no completion
+padding</td>
+</tr>
+<tr>
+<td style="text-align: left;">Shared population</td>
+<td style="text-align: left;">32,645 frozen IDs, labels, sources,
+partitions, and starts</td>
+</tr>
+<tr>
+<td style="text-align: left;">Excluded historical terminal examples</td>
+<td style="text-align: left;">319 examples lacking full reference
+contexts</td>
+</tr>
+<tr>
+<td style="text-align: left;">Activity filtering</td>
+<td style="text-align: left;">None; no energy- or prediction-based
+exclusion</td>
+</tr>
+</tbody>
+</table>
+<h2 id="maintaining-a-fair-frontend-comparison">Maintaining a fair
+frontend comparison</h2>
+<p>Although 03B uses shorter frames, it reads the same reference
+contexts and example IDs. No additional terminal windows are admitted
+merely because MFE can process a shorter context, and neither branch
+independently removes weak or zero-valued features. Model differences
+are therefore not confounded with population differences.</p>
+<p>The reconstructed grid matches the accepted manifest exactly. All
+32,645 contexts were checked physically, with matching parent metadata,
+UIDs, ordering, and starts. The historical filename
+<code>core_example_grid_v2_stride15360_ref15600_candidates.csv</code> is
+retained; “candidates” does not indicate pending acceptance. A separate
+audit records <code>ACCEPTED_FROZEN</code>, while the original
+generation audit is preserved.</p>
+<h1
+id="frontends-03a-and-03b-methods-verification-and-trade-offs">Frontends
+03A and 03B: Methods, Verification, and Trade-offs</h1>
+<h2 id="a-vggish-style-reference-log-mel">03A: VGGish-style reference
+log-mel</h2>
+<p>03A divides each context into 96 frames, using a 400-sample periodic
+Hann window (25 ms), 160-sample hop (10 ms), 512-point FFT, and
+unnormalized magnitude spectrum. The mel filterbank has 64 bands
+spanning 125–7,500 Hz, followed by natural-log compression with offset
+0.01:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>X</mi><mrow><mi>t</mi><mo>,</mo><mi>m</mi></mrow><mrow><mo stretchy="false" form="prefix">(</mo><mi>A</mi><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mrow><mi mathvariant="normal">ln</mi><mo>&#8289;</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><munder><mo>∑</mo><mi>k</mi></munder><msub><mi>M</mi><mrow><mi>m</mi><mo>,</mo><mi>k</mi></mrow></msub><mo stretchy="false" form="prefix">|</mo><msub><mrow><mi mathvariant="normal">F</mi><mi mathvariant="normal">F</mi><mi mathvariant="normal">T</mi></mrow><mn>512</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>w</mi><mo>⊙</mo><msub><mi>x</mi><mi>t</mi></msub><msub><mo stretchy="false" form="postfix">)</mo><mi>k</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>+</mi><mn>0.01</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">\begin{equation}
+X^{(A)}_{t,m}=\ln\left(\sum_k M_{m,k}|\mathrm{FFT}_{512}(w\odot x_t)_k|+0.01\right).
+\end{equation}</annotation></semantics></math> The frontend produces a
+float64
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>96</mn><mo>×</mo><mn>64</mn></mrow><annotation encoding="application/x-tex">96\times64</annotation></semantics></math>
+tensor. Training uses float32 model buffers under a separate contract;
+this conversion does not regenerate the frontend or cache. TRAIN-global
+z-score normalization is likewise fitted preprocessing within the
+training configuration, not a change to the frozen log-mel
+transform.</p>
+<p>The reference <code>mel_features.py</code> is pinned and checked for
+numerical parity on identical 16 kHz contexts. Verification is limited
+to feature-transform parity within that scope. The project uses no
+pretrained VGGish embeddings, does not retrain the original HumBugDB
+model, and does not reproduce the original benchmark’s complete
+PCM16/resampy path.</p>
+<h2 id="b-pinned-mfe-implementation">03B: pinned MFE implementation</h2>
+<p>03B uses the Python MFE branch from a pinned Edge Impulse revision
+and its vendored SpeechPy fork. Explicit settings are 320-sample frames
+(20 ms), a 160-sample hop, 40 filters, a 256-point FFT, and a 0–8,000 Hz
+range. The implementation retains float32 casting, pre-emphasis 0.98
+using <code>np.roll</code>, power-spectrum processing, dB/noise-floor
+transformation, and quantization/dequantization. Output is a float32
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>96</mn><mo>×</mo><mn>40</mn></mrow><annotation encoding="application/x-tex">96\times40</annotation></semantics></math>
+tensor.</p>
+<p>The 256-point FFT receives 320-sample frames, so this Python
+implementation truncates them. The first pre-emphasis sample depends on
+the last sample of the same context; rounding before uint8 casting also
+produces boundary wrap retained in reference regression checks. These
+behaviours are frozen for reproducibility, not silently corrected during
+training. C++/ESP32 and continuous-stream parity remain unverified;
+changing the behaviour requires new frontend and cache identifiers.</p>
+<table id="tab:frontends">
+<caption>The branches represent complete frontend configurations, not an
+ablation of mel-band count alone.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Component</th>
+<th style="text-align: left;">03A</th>
+<th style="text-align: left;">03B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Context/start</td>
+<td style="text-align: left;">Shared 15,600/15,360-sample grid</td>
+<td style="text-align: left;">Same as 03A</td>
+</tr>
+<tr>
+<td style="text-align: left;">Frame/hop</td>
+<td style="text-align: left;">400/160 sample</td>
+<td style="text-align: left;">320/160 sample</td>
+</tr>
+<tr>
+<td style="text-align: left;">Window and FFT</td>
+<td style="text-align: left;">Periodic Hann; FFT512</td>
+<td style="text-align: left;">Rectangular; FFT256 with truncation</td>
+</tr>
+<tr>
+<td style="text-align: left;">Spectrum</td>
+<td style="text-align: left;">Magnitude</td>
+<td style="text-align: left;">Implementation-scaled power</td>
+</tr>
+<tr>
+<td style="text-align: left;">Bands and range</td>
+<td style="text-align: left;">64; 125–7,500 Hz</td>
+<td style="text-align: left;">40; 0–8,000 Hz</td>
+</tr>
+<tr>
+<td style="text-align: left;">Compression</td>
+<td
+style="text-align: left;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">ln</mi><mo>&#8289;</mo></mrow><mo stretchy="false" form="prefix">(</mo><mrow><mi mathvariant="normal">m</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">l</mi></mrow><mo>+</mo><mn>0.01</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\ln(\mathrm{mel}+0.01)</annotation></semantics></math></td>
+<td style="text-align: left;">Pinned dB/noise floor, Q/DQ</td>
+</tr>
+<tr>
+<td style="text-align: left;">Pre-emphasis</td>
+<td style="text-align: left;">None</td>
+<td style="text-align: left;">0.98; per-context wrap</td>
+</tr>
+<tr>
+<td style="text-align: left;">Tensor frontend</td>
+<td
+style="text-align: left;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>96</mn><mo>×</mo><mn>64</mn></mrow><annotation encoding="application/x-tex">96\times64</annotation></semantics></math>,
+float64</td>
+<td
+style="text-align: left;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>96</mn><mo>×</mo><mn>40</mn></mrow><annotation encoding="application/x-tex">96\times40</annotation></semantics></math>,
+float32</td>
+</tr>
+<tr>
+<td style="text-align: left;">Noise floor</td>
+<td style="text-align: left;">Not an MFE parameter</td>
+<td style="text-align: left;">Project:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>70</mn></mrow><annotation encoding="application/x-tex">-70</annotation></semantics></math>
+dB; UI default:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>52</mn></mrow><annotation encoding="application/x-tex">-52</annotation></semantics></math>
+dB</td>
+</tr>
+<tr>
+<td style="text-align: left;">Audit status</td>
+<td style="text-align: left;"><code>VERIFIED_FROZEN</code></td>
+<td style="text-align: left;"><code>VERIFIED_FROZEN</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="rationale-for-the--70-db-noise-floor">Rationale for the -70 dB
+noise floor</h2>
+<p>The project does not treat
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>70</mn></mrow><annotation encoding="application/x-tex">-70</annotation></semantics></math> dB
+as the Edge Impulse default. Exploration on 128 class-balanced TRAIN
+examples was followed by full-TRAIN confirmation comparing
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>65</mn></mrow><annotation encoding="application/x-tex">-65</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>70</mn></mrow><annotation encoding="application/x-tex">-70</annotation></semantics></math> dB.
+The former produced 11 entirely zero tensors among 22,613 examples; the
+latter produced none. Neither had bins near the upper boundary under the
+specified diagnostic. The choice of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>70</mn></mrow><annotation encoding="application/x-tex">-70</annotation></semantics></math> dB
+is a limited TRAIN-based measure against feature collapse, not
+validation/TEST optimization or evidence of a globally optimal
+floor.</p>
+<p>No windows were removed. The shared grid was retained, and the audit
+was written only after all gates passed. Shape/finiteness checks,
+synthetic and boundary cases, pinned-wrapper regressions, and real-TRAIN
+parity checks support implementation correctness; they do not predict
+model F1 before training.</p>
+<h2 id="interpreting-the-advantage-of-03a">Interpreting the advantage of
+03A</h2>
+<p>03A outperformed 03B for all four models in exp007 and exp008,
+supporting its use in the current development configuration. The
+difference cannot be attributed solely to band count, Hann windowing,
+frequency range, or pre-emphasis, because these factors change together.
+It does not establish that every MFE configuration is inferior to every
+log-mel transform or that 03B cannot benefit from a different training
+configuration.</p>
+<h1 id="model-architectures-and-training-protocol">Model Architectures
+and Training Protocol</h1>
+<h2 id="architectures-and-comparison-rationale">Architectures and
+comparison rationale</h2>
+<p>Small CNN provides a straightforward two-dimensional convolutional
+baseline. DS-CNN factorizes convolution into depthwise and pointwise
+operations to reduce parameters. TC-ResNet8 models temporal structure
+with frequency bins as input channels. CNN-LSTM adds temporal recurrence
+after convolution. Compact DS-CNN and temporal convolution have
+precedents in keyword spotting [4, 5]; the project uses the specific
+architectures documented in <code>model_zoo.py</code>, rather than
+claiming exact reproduction of the published models.</p>
+<table id="tab:models">
+<caption>Fixed architectures and parameter counts. Different input
+widths change the TC-ResNet8 parameter count.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Model</th>
+<th style="text-align: left;">Main structure</th>
+<th style="text-align: right;">Params 03A</th>
+<th style="text-align: right;">Params 03B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Small CNN</td>
+<td style="text-align: left;">Conv channels 16/32/64; pooling; global
+mean; Linear4</td>
+<td style="text-align: right;">23,668</td>
+<td style="text-align: right;">23,668</td>
+</tr>
+<tr>
+<td style="text-align: left;">DS-CNN</td>
+<td style="text-align: left;">Stem 32; 4 depthwise/pointwise blocks;
+global mean; Linear4</td>
+<td style="text-align: right;">6,244</td>
+<td style="text-align: right;">6,244</td>
+</tr>
+<tr>
+<td style="text-align: left;">TC-ResNet8</td>
+<td style="text-align: left;">Temporal Conv1d; channels 16/24/32/48; 3
+residual blocks</td>
+<td style="text-align: right;">65,940</td>
+<td style="text-align: right;">64,788</td>
+</tr>
+<tr>
+<td style="text-align: left;">CNN-LSTM</td>
+<td style="text-align: left;">Conv 16/32; frequency mean; LSTM hidden
+32; last state</td>
+<td style="text-align: right;">13,428</td>
+<td style="text-align: right;">13,428</td>
+</tr>
+</tbody>
+</table>
+<p>Models use ReLU, implementation-specific BatchNorm, head dropout 0.2,
+and PyTorch initialization from scratch. No pretrained backbone,
+oversampling, or transfer-learning embedding is introduced between
+experiments. Global pooling makes most parameter counts independent of
+frequency-bin count; the TC stem depends directly on frequency channels.
+The smallest model is not inherently best, but DS-CNN achieved the
+highest exp007 score with over ten times fewer parameters than
+TC-ResNet8.</p>
+<h2 id="fixed-components">Fixed components</h2>
+<p>The suite comprises 03A/03B
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>
+four models, executed sequentially. Fixed settings are seed 42, batch
+size 64, at most 50 epochs, patience eight, Adam, float32, no mixed
+precision, and no pretraining. Adam uses betas (0.9, 0.999), epsilon
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mi>−</mi><mn>8</mn></mrow></msup><annotation encoding="application/x-tex">10^{-8}</annotation></semantics></math>,
+and a constant learning rate. TRAIN is shuffled; validation and TEST are
+not. <code>num_workers=0</code>, and the final batch is retained.
+Caches, partitions, and model definitions remain unchanged across
+ablations.</p>
+<p>Overrides are implemented through distinct protocol versions: v2 for
+checkpoint selection, learning rate, and normalization; v3 for
+square-root weights; v4 for the power exponent; v5 for Adam weight
+decay; and v6 for targeted TRAIN-only time masking. Earlier engines and
+configurations are preserved so that historical results remain
+traceable. Exp010 is an intentional single run, not an incomplete
+eight-model suite.</p>
+<h2 id="weighted-cross-entropy-and-minority-class-trade-offs">Weighted
+cross-entropy and minority-class trade-offs</h2>
+<p>Class weights are fitted only from TRAIN window counts
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mi>c</mi></msub><annotation encoding="application/x-tex">n_c</annotation></semantics></math>.
+With
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>=</mo><mn>22</mn><mo>,</mo><mn>613</mn></mrow><annotation encoding="application/x-tex">N=22{,}613</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mo>=</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">C=4</annotation></semantics></math>,
+and exponent
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>,
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mi>c</mi></msub><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mi>N</mi><mrow><mi>C</mi><msub><mi>n</mi><mi>c</mi></msub></mrow></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mi>α</mi></msup><mo>,</mo><mspace width="2.0em"></mspace><msub><mi mathvariant="script">ℒ</mi><mrow><mi>b</mi><mi>a</mi><mi>t</mi><mi>c</mi><mi>h</mi></mrow></msub><mo>=</mo><mfrac><mrow><munder><mo>∑</mo><mi>i</mi></munder><msub><mi>w</mi><msub><mi>y</mi><mi>i</mi></msub></msub><mo stretchy="false" form="prefix">[</mo><mi>−</mi><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>y</mi><mi>i</mi></msub><mo>∣</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">]</mo></mrow><mrow><munder><mo>∑</mo><mi>i</mi></munder><msub><mi>w</mi><msub><mi>y</mi><mi>i</mi></msub></msub></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">\begin{equation}
+w_c=\left(\frac{N}{C n_c}\right)^\alpha,\qquad
+\mathcal{L}_{batch}=\frac{\sum_i w_{y_i}[-\log p(y_i\mid x_i)]}{\sum_i w_{y_i}}.
+\label{eq:loss}
+\end{equation}</annotation></semantics></math> Exp004 uses
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\alpha=1</annotation></semantics></math>,
+exp006 uses
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.5</mn><annotation encoding="application/x-tex">0.5</annotation></semantics></math>,
+and exp007 uses
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.75</mn><annotation encoding="application/x-tex">0.75</annotation></semantics></math>.
+Weights are not calculated from validation/TEST or source counts. Under
+idealized full-epoch counting, total weighted mass is proportional to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>n</mi><mi>c</mi><mrow><mn>1</mn><mo>−</mo><mi>α</mi></mrow></msubsup><annotation encoding="application/x-tex">n_c^{1-\alpha}</annotation></semantics></math>;
+hence
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.75</mn></mrow><annotation encoding="application/x-tex">\alpha=0.75</annotation></semantics></math>
+does not fully equalize class contributions. It provides an intermediate
+weighting strength, not an automatic solution to imbalance.</p>
+<table id="tab:weights">
+<caption>Weights derived from TRAIN window counts. Displayed values are
+rounded; artifacts retain full precision.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Label</th>
+<th style="text-align: right;">TRAIN windows</th>
+<th
+style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\alpha=1</annotation></semantics></math></th>
+<th
+style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">\alpha=0.5</annotation></semantics></math></th>
+<th
+style="text-align: right;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.75</mn></mrow><annotation encoding="application/x-tex">\alpha=0.75</annotation></semantics></math></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Ara</td>
+<td style="text-align: right;">10,457</td>
+<td style="text-align: right;">0.540619</td>
+<td style="text-align: right;">0.735268</td>
+<td style="text-align: right;">0.630476</td>
+</tr>
+<tr>
+<td style="text-align: left;">Fun</td>
+<td style="text-align: right;">5,128</td>
+<td style="text-align: right;">1.102428</td>
+<td style="text-align: right;">1.049966</td>
+<td style="text-align: right;">1.075877</td>
+</tr>
+<tr>
+<td style="text-align: left;">Squ</td>
+<td style="text-align: right;">1,426</td>
+<td style="text-align: right;">3.964411</td>
+<td style="text-align: right;">1.991083</td>
+<td style="text-align: right;">2.809532</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cpx</td>
+<td style="text-align: right;">5,602</td>
+<td style="text-align: right;">1.009149</td>
+<td style="text-align: right;">1.004564</td>
+<td style="text-align: right;">1.006854</td>
+</tr>
+</tbody>
+</table>
+<p>Reducing the Squ weight may reduce false positives at the expense of
+recall. Conclusions therefore consider more than macro-F1 or precision
+alone. Weighted validation loss also changes with class weights, so
+losses from exp004, exp006, and exp007 cannot be ranked directly as
+identical objectives. F1 comparisons retain the same labels and
+population, but the changed loss may alter the stopping epoch.</p>
+<h2 id="train-global-normalization">TRAIN-global normalization</h2>
+<p>From exp004 onward, each frontend uses a scalar mean and standard
+deviation fitted over all TRAIN feature values. Validation and TEST,
+when evaluated, use the same TRAIN statistics:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>z</mi><mrow><mi>t</mi><mo>,</mo><mi>f</mi></mrow></msub><mo>=</mo><mfrac><mrow><msub><mi>x</mi><mrow><mi>t</mi><mo>,</mo><mi>f</mi></mrow></msub><mo>−</mo><msub><mi>μ</mi><mrow><mi>T</mi><mi>R</mi><mi>A</mi><mi>I</mi><mi>N</mi></mrow></msub></mrow><msub><mi>σ</mi><mrow><mi>T</mi><mi>R</mi><mi>A</mi><mi>I</mi><mi>N</mi></mrow></msub></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">\begin{equation}
+z_{t,f}=\frac{x_{t,f}-\mu_{TRAIN}}{\sigma_{TRAIN}}.
+\end{equation}</annotation></semantics></math> Normalization is neither
+per-example nor per-frequency-bin and is not fitted to the full dataset.
+For exp007 03A,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>μ</mi><mo>=</mo><mi>−</mi><mn>4.0684007454</mn></mrow><annotation encoding="application/x-tex">\mu=-4.0684007454</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><mo>=</mo><mn>0.4127529156</mn></mrow><annotation encoding="application/x-tex">\sigma=0.4127529156</annotation></semantics></math>,
+fitted over 22,613 TRAIN examples and 138,934,272 scalar values.
+Statistics are computed in float64, then model tensors are converted to
+float32 in separate buffers. Read-only caches are not modified.</p>
+<h1 id="notebook-pipeline-runtime-and-result-management">Notebook
+Pipeline, Runtime, and Result Management</h1>
+<h2 id="responsibilities-of-each-notebook">Responsibilities of each
+notebook</h2>
+<table id="tab:notebooks">
+<caption>Responsibilities and scientific or technical outputs of
+notebooks 00–04D.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Stage</th>
+<th style="text-align: left;">Task</th>
+<th style="text-align: left;">Outputs and downstream decisions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Stage</td>
+<td style="text-align: left;">Task</td>
+<td style="text-align: left;">Outputs and downstream decisions</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Reproduce Core and exact source split</td>
+<td style="text-align: left;">Matching membership and assignments;
+canonical writes disabled; frozen assignments retained.</td>
+</tr>
+<tr>
+<td style="text-align: left;">01</td>
+<td style="text-align: left;">Audit metadata, sources, and WAV
+files</td>
+<td style="text-align: left;">No source-name leakage; valid
+format/duration; technical checks do not authorize relabelling.</td>
+</tr>
+<tr>
+<td style="text-align: left;">02</td>
+<td style="text-align: left;">Validate Example Grid v2</td>
+<td style="text-align: left;">32,645 complete contexts; shared
+UIDs/starts; 319 historical incomplete terminal examples excluded.</td>
+</tr>
+<tr>
+<td style="text-align: left;">03A</td>
+<td style="text-align: left;">Reference log-mel parity</td>
+<td
+style="text-align: left;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>96</mn><mo>×</mo><mn>64</mn></mrow><annotation encoding="application/x-tex">96\times64</annotation></semantics></math>,
+verified/frozen; no pretrained VGGish embeddings.</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B</td>
+<td style="text-align: left;">Pinned MFE regression and TRAIN
+diagnostics</td>
+<td
+style="text-align: left;"><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>96</mn><mo>×</mo><mn>40</mn></mrow><annotation encoding="application/x-tex">96\times40</annotation></semantics></math>,
+noise floor
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>70</mn></mrow><annotation encoding="application/x-tex">-70</annotation></semantics></math>;
+shared population; deployment parity unconfirmed.</td>
+</tr>
+<tr>
+<td style="text-align: left;">04A</td>
+<td style="text-align: left;">Log-mel model branch</td>
+<td style="text-align: left;">Historical entry point for branch A; new
+experiments run through 04D without separate 04A retraining.</td>
+</tr>
+<tr>
+<td style="text-align: left;">04B</td>
+<td style="text-align: left;">MFE model branch</td>
+<td style="text-align: left;">Historical entry point for branch B; no
+alternative population or branch-A-incompatible cache.</td>
+</tr>
+<tr>
+<td style="text-align: left;">04C</td>
+<td style="text-align: left;">Review by experiment name</td>
+<td style="text-align: left;">Verification, tables, histories,
+confusion, and references; a separate exp009 section reads saved
+predictions on CPU.</td>
+</tr>
+<tr>
+<td style="text-align: left;">04D</td>
+<td style="text-align: left;">Runtime setup, preflight, preview, and
+training</td>
+<td style="text-align: left;">Clone/pull repository, mount Drive, check
+cache/CUDA; suite or targeted run saved separately; training explicitly
+enabled.</td>
+</tr>
+</tbody>
+</table>
+<figure>
+<img src="images/workflow.png" />
+<figcaption>Scientific workflow and review. Changes to learning rate,
+class weights, or augmentation on tensor copies do not require rerunning
+00–03B.</figcaption>
+</figure>
+<h2 id="github-for-code-drive-for-fixed-inputs-and-outputs">GitHub for
+code; Drive for fixed inputs and outputs</h2>
+<p>The repository stores code, notebooks, configurations, tools,
+environment definitions, and small manifests and contracts needed for
+traceability. Drive stores audio, validated caches, baseline evidence,
+and experiment outputs. The central path layer,
+<code>tools/project_paths.py</code>, separates logical artifact identity
+from physical location. LOCAL uses the local repository and a
+configurable data root; COLAB uses a GitHub clone and
+<code>/content/drive/MyDrive/EdgeAI</code>.</p>
+<table>
+<caption>Storage mapping in Colab. “Fixed” denotes a boundary enforced
+by code and workflow, not a read-only Drive filesystem.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Component</th>
+<th style="text-align: left;">Location beneath the EdgeAI root</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Raw WAV</td>
+<td style="text-align: left;"><code>fixed/raw/HumBugDB/</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Manifests and partitions</td>
+<td style="text-align: left;"><code>fixed/data/manifests/</code>,
+<code>fixed/data/splits/</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Validated cache</td>
+<td
+style="text-align: left;"><code>fixed/data/stage04_cache/</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Immutable baseline</td>
+<td style="text-align: left;"><code>fixed/baseline/stage04/</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">New experiments</td>
+<td
+style="text-align: left;"><code>experiments/&lt;experiment_id&gt;/</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">New derived versions</td>
+<td style="text-align: left;"><code>derived/</code>, following an
+approved scientific change</td>
+</tr>
+</tbody>
+</table>
+<p>Colab must import tools from its own repository clone; opening a
+notebook in local VS Code does not make a <code>D:\...</code> path
+accessible to a remote kernel. Setup locates the repository, adds tools
+to the import path, and mounts or configures Drive. A kernel that
+imported older modules requires restarting after code updates. The
+workflow does not depend on the directory name
+<code>.venv-stage04</code>; it requires the specified packages rather
+than a fixed Windows path.</p>
+<h2 id="experiment-identifiers-and-integrity">Experiment identifiers and
+integrity</h2>
+<p>Each experiment name creates a new directory. The runner rejects
+existing names, including FAILED or INTERRUPTED runs; retries use a
+different identifier to preserve logs and provenance. Configuration and
+metadata record the name, description, parent/reference, planned and
+completed runs, commit, runtime, seed, effective parameters, input
+identities, and artifact hashes. Testing exp008 or exp010 does not
+overwrite exp007 checkpoints.</p>
+<p>Smoke checks cover the environment, CUDA when requested, cache
+identity, and synthetic forward passes; they neither update models nor
+evaluate F1. A full portability audit may be slow because it reads many
+bytes, but does not improve training. Once fixed inputs have been
+audited and remain unchanged, appropriate preflight checks are still
+needed, but changing one training parameter does not require feature
+regeneration or every full audit. Setting <code>RUN_TRAINING=True</code>
+starts execution; it is not the default to commit to the repository.</p>
+<p>Output guards and pinned hashes help prevent accidental writes to
+fixed raw data, caches, and baselines through project tools. They do not
+replace Google Drive permissions or protect against all external
+operations. Immutability is therefore a checked contract that must also
+be respected during manual data management.</p>
+<h1 id="evaluation-metrics-checkpoints-and-uncertainty">Evaluation:
+Metrics, Checkpoints, and Uncertainty</h1>
+<h2 id="macro-f1-alongside-accuracy">Macro-F1 alongside accuracy</h2>
+<p>For each class
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>c</mi></msub><mo>=</mo><mi>T</mi><msub><mi>P</mi><mi>c</mi></msub><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mi>T</mi><msub><mi>P</mi><mi>c</mi></msub><mo>+</mo><mi>F</mi><msub><mi>P</mi><mi>c</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">P_c=TP_c/(TP_c+FP_c)</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>R</mi><mi>c</mi></msub><mo>=</mo><mi>T</mi><msub><mi>P</mi><mi>c</mi></msub><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mi>T</mi><msub><mi>P</mi><mi>c</mi></msub><mo>+</mo><mi>F</mi><msub><mi>N</mi><mi>c</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">R_c=TP_c/(TP_c+FN_c)</annotation></semantics></math>,
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><msub><mn>1</mn><mi>c</mi></msub><mo>=</mo><mn>2</mn><msub><mi>P</mi><mi>c</mi></msub><msub><mi>R</mi><mi>c</mi></msub><mi>/</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>P</mi><mi>c</mi></msub><mo>+</mo><msub><mi>R</mi><mi>c</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">F1_c=2P_cR_c/(P_c+R_c)</annotation></semantics></math>.
+Macro-F1 is the unweighted mean of the four class F1 scores. Undefined
+precision, recall, and F1 are set to zero under the protocol. Accuracy
+is weighted by window count, so strong Ara performance can obscure poor
+Squ performance. Confusion matrices and support are therefore considered
+alongside aggregate metrics.</p>
+<p>TRAIN-eval uses the selected checkpoint in evaluation mode without
+augmentation. This differs from online TRAIN history, where dropout is
+active and weights change after each batch. Online TRAIN metrics cannot
+be compared directly with validation as the exact gap of a fixed
+checkpoint. The reported gap is TRAIN-eval macro-F1 minus selected
+validation macro-F1.</p>
+<h2 id="window-and-source-f1-are-not-interchangeable">Window and Source
+F1 are not interchangeable</h2>
+<p>The window endpoint comprises 4,937 validation decisions. The source
+endpoint averages softmax probabilities over all windows sharing a
+<code>name</code>, then applies argmax to obtain one decision per
+source:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>p</mi><mo accent="true">¯</mo></mover><mi>s</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>c</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mn>1</mn><mrow><mo stretchy="false" form="prefix">|</mo><msub><mi>W</mi><mi>s</mi></msub><mo stretchy="false" form="prefix">|</mo></mrow></mfrac><munder><mo>∑</mo><mrow><mi>i</mi><mo>∈</mo><msub><mi>W</mi><mi>s</mi></msub></mrow></munder><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>c</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo><mspace width="2.0em"></mspace><msub><mover><mi>y</mi><mo accent="true">̂</mo></mover><mi>s</mi></msub><mo>=</mo><mrow><mi mathvariant="normal">arg</mi><mo>&#8289;</mo></mrow><munder><mi mathvariant="normal">max</mi><mi>c</mi></munder><msub><mover><mi>p</mi><mo accent="true">¯</mo></mover><mi>s</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>c</mi><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">\begin{equation}
+\overline p_s(c)=\frac{1}{|W_s|}\sum_{i\in W_s}p_i(c),\qquad
+\widehat y_s=\arg\max_c\overline p_s(c).
+\end{equation}</annotation></semantics></math> Validation contains 177
+sources. Windows per source vary, and aggregation may span several
+labelled clips. Source F1 of 74.89% therefore describes multiple
+observations over variable durations. It is neither 74.89% accuracy nor
+evidence that a 0.975-second model achieves 74.89% F1.</p>
+<h2 id="checkpoint-selection-and-stopping">Checkpoint selection and
+stopping</h2>
+<p>Exp001 retains baseline selection by minimum weighted validation
+loss. From exp002 onward, the selected checkpoint maximizes validation
+macro-F1, with ties resolved in favour of the earliest epoch; both
+best-loss and best-F1 checkpoints are saved. Early stopping still
+monitors weighted validation loss with patience eight. Consequently, the
+best-F1 checkpoint may follow the best-loss epoch, and stopping may
+truncate a trajectory whose F1 is still improving. This is a declared
+trade-off, not automatically an implementation error.</p>
+<p>DS-CNN/03A selects epoch 26 of 35 in exp007 and epoch 20 of 27 in
+exp008; the saved exp010 table reports epoch 13. Exp007 TC-ResNet8
+reaches its best F1 at the final epoch, 17, motivating a
+stopping-monitor diagnostic if that model is revisited. Increasing the
+epoch limit does not necessarily improve F1, since most runs stop before
+50 epochs because of patience.</p>
+<h2 id="test-history-and-repeated-validation-tuning">TEST history and
+repeated validation tuning</h2>
+<p>Historical baseline and exp001 TEST metrics were previously reported.
+Exp002–008 and exp010 use validation-only development; exp009 reads
+validation predictions rather than TEST. Although TEST does not select
+checkpoints under the current protocol, earlier exposure to its results
+must be disclosed. The report cannot establish that those historical
+results never influenced human decisions.</p>
+<p>Repeated tuning on the same validation set introduces selection bias.
+One seed, 42, and one fixed split do not establish robust improvement.
+The configuration should be frozen, confirmed using prespecified seeds,
+and followed by planned final evaluation. If historical TEST results
+influenced tuning, a clean confirmatory claim requires a genuinely
+independent session, individual, or domain holdout; reshuffling existing
+clips does not resolve this issue.</p>
+<h2 id="source-bootstrap-intervals">Source-bootstrap intervals</h2>
+<p>Windows from the same source are correlated, so uncertainty for fixed
+predictions is estimated by resampling source blocks rather than
+treating 4,937 windows as independent replicates. The exp007/008 and
+exp009 analyses use 4,000 class-stratified paired resamples with seed
+20261002. Intervals describe sampling uncertainty conditional on
+existing predictions; they do not cover training seeds, repeated tuning,
+checkpoint selection, or dependencies among sources from the same
+session. A positive validation interval is not evidence of deployment
+performance or confirmed TEST improvement.</p>
+<h1
+id="experimental-record-observations-decisions-and-results">Experimental
+Record: Observations, Decisions, and Results</h1>
+<h2 id="overview">Overview</h2>
+<p>Each training experiment from exp001 to exp008 includes eight
+configurations. Exp009 is a diagnostic without training, and exp010 runs
+only DS-CNN/03A. Thus, ten experimental milestones do not mean ten
+independent models or ten eight-model suites. Table 12 records the
+principal changes, observations, subsequent decisions, and results. Full
+model matrices in Appendix A retain results beyond the best-performing
+run.</p>
+<div class="landscape">
+<table id="tab:journey">
+<caption>Decision record for exp001–exp010. Scores are validation
+results; exp009 has a separate pair endpoint.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Stage</th>
+<th style="text-align: left;">Change / reference</th>
+<th style="text-align: left;">Observations</th>
+<th style="text-align: left;">Next decision</th>
+<th style="text-align: left;">Main result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Stage</td>
+<td style="text-align: left;">Change / reference</td>
+<td style="text-align: left;">Observations</td>
+<td style="text-align: left;">Next decision</td>
+<td style="text-align: left;">Main result</td>
+</tr>
+<tr>
+<td style="text-align: left;">Exp001</td>
+<td style="text-align: left;">Baseline: LR 0.001, no normalization,
+inverse weights, loss selection.</td>
+<td style="text-align: left;">Eight runs complete; loss selection does
+not directly maximize the primary metric. Historical TEST results
+viewed.</td>
+<td style="text-align: left;">Select by validation macro-F1; add
+TRAIN-eval, per-class, and source diagnostics; disable TEST during
+tuning.</td>
+<td style="text-align: left;">Best selected VAL: CNN-LSTM/03A 54.82%,
+not TEST F1.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Exp002</td>
+<td style="text-align: left;">Protocol v2; best-F1 selection, loss
+stopping retained.</td>
+<td style="text-align: left;">Best 54.82%; TC/03A weak and learning
+unstable.</td>
+<td style="text-align: left;">Reduce only LR from 0.001 to 0.0003, using
+exp002 as control.</td>
+<td style="text-align: left;">DS/03A 54.10%; best suite result
+CNN-LSTM/03A 54.82%.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Exp003</td>
+<td style="text-align: left;">LR 0.0003, no normalization; control
+exp002.</td>
+<td style="text-align: left;">TC/03A recovers, but suite maximum does
+not increase; DS/03A declines slightly.</td>
+<td style="text-align: left;">Test TRAIN-global z-score at LR 0.001 to
+separate normalization from LR.</td>
+<td style="text-align: left;">Best DS/03A 53.66%; TC/03A 53.30%.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Exp004</td>
+<td style="text-align: left;">TRAIN-global z-score, LR 0.001; control
+exp002.</td>
+<td style="text-align: left;">TC/03A improves substantially; 03B gains
+are inconsistent; Squ has many FP.</td>
+<td style="text-align: left;">Test lower LR with normalization, then
+audit TRAIN/predictions if the plateau remains.</td>
+<td style="text-align: left;">TC/03A 60.38%; DS/03A 56.16%, Source
+67.45%.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Exp005</td>
+<td style="text-align: left;">Normalization retained; LR 0.0003; control
+exp004.</td>
+<td style="text-align: left;">Small CNN improves; DS nearly unchanged;
+TC declines; suite mean nearly unchanged.</td>
+<td style="text-align: left;">Retain LR 0.001; weaken class weights
+given Squ false positives.</td>
+<td style="text-align: left;">Best Small/03A 56.67%; DS/03A 56.02%.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Exp006</td>
+<td style="text-align: left;">Weight exponent
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>→</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">1\rightarrow0.5</annotation></semantics></math>;
+normalization/LR retained; control exp004.</td>
+<td style="text-align: left;">Window F1 increases in 7/8 runs, but Squ
+recall declines in all eight; DS Squ recall
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>67.80</mn><mo>→</mo><mn>37.29</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">67.80\rightarrow37.29\%</annotation></semantics></math>.</td>
+<td style="text-align: left;">Test exponent 0.75 without changing
+models, splits, or LR.</td>
+<td style="text-align: left;">DS/03A 59.92%, Source 72.20%;
+minority-class trade-off remains unsatisfactory.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Exp007</td>
+<td style="text-align: left;">Exponent 0.75; normalization/LR retained;
+compare exp004/006.</td>
+<td style="text-align: left;">DS/03A leads; Squ F1 recovers; source
+gains are substantial but TRAIN–VAL gap remains.</td>
+<td style="text-align: left;">Audit TRAIN signals and test mild weight
+decay without multiple simultaneous changes.</td>
+<td style="text-align: left;">DS/03A Window 60.97%, Source 74.89%; 6,244
+parameters.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Exp008</td>
+<td style="text-align: left;">Adam weight decay
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>→</mo><msup><mn>10</mn><mrow><mi>−</mi><mn>4</mn></mrow></msup></mrow><annotation encoding="application/x-tex">0\rightarrow10^{-4}</annotation></semantics></math>;
+control exp007.</td>
+<td style="text-align: left;">Window F1 improves in 3/8 runs and Source
+F1 in 2/8; DS declines. Metric/hash audits do not support a
+pipeline-wide fault.</td>
+<td style="text-align: left;">Retain exp007; test two-window aggregation
+using saved predictions, without retraining.</td>
+<td style="text-align: left;">DS/03A 59.90%, Source 73.28%; no
+improvement over exp007.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Exp009</td>
+<td style="text-align: left;">Mean softmax of two consecutive
+within-clip windows from exp007; predefined endpoint.</td>
+<td style="text-align: left;">Retained singles 61.32% versus pairs
+64.90%; all four class F1 scores improve; 1.935 s audio required.</td>
+<td style="text-align: left;">Retain aggregation as a separate option;
+test mild time masking for single-window improvement.</td>
+<td style="text-align: left;">+3.58 pp, source CI [2.22, 4.85]; 2,389
+pairs; no training.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Exp010</td>
+<td style="text-align: left;">One DS/03A run; TRAIN mask probability
+0.5, width 1–8 frames; exp007 otherwise retained.</td>
+<td style="text-align: left;">Window, Source, and TRAIN-eval decline.
+The summary table does not establish the mechanism.</td>
+<td style="text-align: left;">Retain exp007; inspect exp010
+histories/per-class results; small-TRAIN fit probe remains
+proposed.</td>
+<td style="text-align: left;">Window 55.35%, Source 68.50%, TRAIN
+66.36%; TEST False.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="exp001002-baseline-and-revised-checkpoint-selection">Exp001–002:
+baseline and revised checkpoint selection</h2>
+<p>Exp001 established that the complete suite could run and preserve
+results. However, minimum weighted loss and maximum macro-F1 did not
+coincide. Initial loss-based selection aligned with cross-entropy
+optimization but not directly with the four-class macro criterion.
+Exp002 selected by validation macro-F1 while retaining loss-based
+stopping, models, and data. This clarified the protocol without assuming
+that revised selection must improve the suite maximum.</p>
+<p>CNN-LSTM/03A led both selected-validation tables at 54.82%.
+DS-CNN/03A increased from 52.13% in exp001 to 54.10% in exp002. These
+were separate executions under different selection procedures, not a
+relabelling of one checkpoint. From exp002, TRAIN-eval and source
+diagnostics were also saved to support analysis of underfitting,
+generalization, and class trade-offs. Exp001 TEST F1 is not ranked
+against later validation F1.</p>
+<h2 id="exp003-a-lower-learning-rate-did-not-help-every-model">Exp003: a
+lower learning rate did not help every model</h2>
+<p>Exp003 tested whether LR 0.001 was too high for some architectures.
+Only LR was reduced to 0.0003, without normalization, using exp002 as
+control. TC-ResNet8/03A improved from 40.64% to 53.30%, but DS/03A
+declined from 54.10% to 53.66% and CNN-LSTM/03A from 54.82% to 51.67%.
+The suite maximum therefore did not exceed exp002.</p>
+<p>The effect depended on the architecture; it does not establish that
+lower LR is generally unsuitable or higher LR generally preferable. The
+next step tested normalization at LR 0.001 against exp002, rather than
+changing LR and input scale simultaneously.</p>
+<h2 id="exp004-normalization-helped-selected-configurations">Exp004:
+normalization helped selected configurations</h2>
+<p>Exp004 retained LR 0.001 and added TRAIN-global z-score
+normalization. TC-ResNet8/03A increased from 40.64% to 60.38%, DS/03A
+from 54.10% to 56.16%, and CNN-LSTM/03A reached 55.95%. Small CNN/03B
+declined relative to exp002, however, and 03B gains were inconsistent.
+Normalization was retained for the 03A development direction, without
+claiming a universally effective frontend intervention.</p>
+<p>Prediction and confusion review revealed many Squ false positives:
+DS/03A precision 26.95%, recall 67.80%, F1 38.57%, with 200 TP and 542
+FP. This motivated examination of the weighted-CE trade-off. Before
+changing weights, exp005 tested a lower LR with normalization to
+investigate the interaction between input scale and optimization.</p>
+<h2 id="exp005-lower-lr-benefited-small-cnn-but-not-ds-cnn">Exp005:
+lower LR benefited Small CNN but not DS-CNN</h2>
+<p>Exp005 used the exp004 normalization and LR 0.0003. Small CNN/03A
+improved from 54.18% to 56.67%, and Small CNN/03B from 46.48% to 51.15%.
+TC/03A declined from 60.38% to 56.04%, while DS/03A was nearly unchanged
+at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>56.16</mn><mi>%</mi><mo>→</mo><mn>56.02</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">56.16\%\rightarrow56.02\%</annotation></semantics></math>.
+The eight-run mean decreased by approximately 0.05 points; this is a
+configuration summary, not an ensemble score.</p>
+<p>More epochs did not ensure better validation performance: DS selected
+epoch 43 but reached only 56.02% Window F1, with TRAIN-eval 68.28%. The
+team retained LR 0.001 for subsequent ablations rather than selecting a
+universal LR from the Small CNN gains. TRAIN signal and prediction
+audits examined imbalance and source effects before expanding the
+search.</p>
+<h2
+id="exp006-weaker-weighting-reduced-false-positives-but-recall-fell">Exp006:
+weaker weighting reduced false positives but recall fell</h2>
+<p>Exp006 changed the weight exponent from
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\alpha=1</annotation></semantics></math>
+to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.5</mn><annotation encoding="application/x-tex">0.5</annotation></semantics></math>,
+using exp004 as control. Window F1 increased in seven of eight runs;
+DS/03A reached 59.92% and Small/03A 59.20%. Squ recall nevertheless
+declined in every configuration. For DS/03A, Squ TP changed
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>200</mn><mo>→</mo><mn>110</mn></mrow><annotation encoding="application/x-tex">200\rightarrow110</annotation></semantics></math>,
+FP
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>542</mn><mo>→</mo><mn>207</mn></mrow><annotation encoding="application/x-tex">542\rightarrow207</annotation></semantics></math>,
+and FN
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>95</mn><mo>→</mo><mn>185</mn></mrow><annotation encoding="application/x-tex">95\rightarrow185</annotation></semantics></math>.
+Precision increased
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>26.95</mn><mi>%</mi><mo>→</mo><mn>34.70</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">26.95\%\rightarrow34.70\%</annotation></semantics></math>,
+but recall fell
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>67.80</mn><mi>%</mi><mo>→</mo><mn>37.29</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">67.80\%\rightarrow37.29\%</annotation></semantics></math>
+and F1
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>38.57</mn><mi>%</mi><mo>→</mo><mn>35.95</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">38.57\%\rightarrow35.95\%</annotation></semantics></math>.</p>
+<p>A macro-F1 increase driven by other classes does not establish that
+imbalance has been resolved. Correct Squ sources fell from 11/13 to
+6/13. The next experiment tested exponent 0.75 as an intermediate
+trade-off, retaining LR, normalization, architecture, seed, partitions,
+and caches. Oversampling and alternative losses were not introduced
+simultaneously.</p>
+<h2 id="exp007-retained-development-configuration">Exp007: retained
+development configuration</h2>
+<p>With
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.75</mn></mrow><annotation encoding="application/x-tex">\alpha=0.75</annotation></semantics></math>,
+DS-CNN/03A achieved Window F1 60.97% and Source F1 74.89%. Squ precision
+was 38.40%, recall 48.81%, F1 42.99%, and 9/13 sources were correct.
+Compared with exp006, three Squ sources were recovered; Window macro-F1
+increased 1.06 points and Source F1 2.69 points. Total correct sources
+remained 135/177 because gains in some classes coincided with losses in
+others. Window accuracy declined slightly while macro-F1 increased,
+illustrating their different weighting.</p>
+<p>Window F1 improved 4.82 points over DS/03A exp004, but only 0.60
+points over the exp004 suite leader, TC/03A. These comparisons answer
+different questions. The paired source-bootstrap interval comparing DS
+exp006 with exp007 includes zero. Exp007 is therefore the best observed
+development candidate, not a model proven superior across seeds.</p>
+<p>The post-exp007 TRAIN audit examined 30 sources—15 repeatedly
+incorrect and 15 matched correct controls—covering 43 WAV files and 484
+windows. No digital zeros, clipping, or cache collapse were found in the
+sample. Some incorrect sources were weak, but others were stronger than
+their controls. The team therefore did not remove windows, relabel
+samples, or alter waveforms according to predictions. The 13.34-point
+TRAIN-eval–VAL gap still motivated mild regularization in exp008.</p>
+<h2 id="exp008-an-informative-negative-result">Exp008: an informative
+negative result</h2>
+<p>Exp008 added only Adam weight decay
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mi>−</mi><mn>4</mn></mrow></msup><annotation encoding="application/x-tex">10^{-4}</annotation></semantics></math>
+to exp007. This is coupled L2 regularization in Adam, not AdamW. DS/03A
+Window F1 declined from 60.97% to 59.90% and Source F1 from 74.89% to
+73.28%. Small CNN/03A gained 1.29 points, but only 3/8 Window and 2/8
+Source scores improved. The paired bootstrap interval for the DS Window
+difference of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>1.07</mn></mrow><annotation encoding="application/x-tex">-1.07</annotation></semantics></math>
+points was
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">[</mo><mi>−</mi><mn>3.22</mn><mo>,</mo><mi>+</mi><mn>1.27</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[-3.22,+1.27]</annotation></semantics></math>
+at 95%.</p>
+<p>The result does not support retaining this weight decay in the
+selected configuration. It does not establish that regularization is
+universally ineffective: only one strength, configuration, and seed were
+tested. Detailed metric, configuration, history, prediction, and hash
+review found no inconsistency explaining the plateau through artifact
+corruption. The team then tested temporal evidence aggregation in
+exp009, using a CPU diagnostic before repeating an expensive suite.</p>
+<h2 id="exp009-additional-temporal-evidence-without-retraining">Exp009:
+additional temporal evidence without retraining</h2>
+<p>Exp009 averages saved validation softmax probabilities for two
+adjacent windows within each clip, using exp007 DS/03A. It does not
+reread audio or caches for inference and uses neither GPU nor optimizer.
+Population, tail exclusions, and source grouping are described in
+Section 11.</p>
+<p>Macro-F1 increased from 61.32% on matched single windows to 64.90% on
+pairs, with improvement in all four per-class F1 scores. This is
+consistent with incomplete or unstable evidence in some windows and a
+benefit from aggregation. It does not show that all source errors arise
+from insufficient duration: unrestricted source aggregation is a
+different endpoint, and some sources remain repeatedly incorrect. Exp009
+was retained as a separate output option, while time masking was tested
+for single-window improvement.</p>
+<h2
+id="exp010-the-tested-time-masking-did-not-improve-performance">Exp010:
+the tested time masking did not improve performance</h2>
+<p>Exp010 trained only DS/03A to limit cost and test one hypothesis. It
+retained exp007 and added a TRAIN-only mask with probability 0.5: one
+mask spanning 1–8 time frames across all frequencies, filled with zero
+after TRAIN-global z-score normalization. Masking uses private tensor
+copies and does not modify caches. Validation and TRAIN-eval are
+unmasked. The augmentation generator uses seed 42 independently of model
+and shuffle RNGs.</p>
+<p>The saved 04D table reports selected epoch 13, weighted validation
+loss 0.956628, Window macro-F1 55.35%, Source F1 68.50%, TRAIN-eval
+66.36%, and TEST False. Relative to exp007, the three F1 scores fell by
+5.62, 6.39, and 7.96 points. A smaller gap is not an improvement when
+validation also deteriorates. These results justify rejecting the tested
+configuration as the current reference, but do not establish whether
+masking obscured wingbeats, caused underfitting, interacted with early
+stopping, or exposed another training issue without further history,
+per-class, and log review. Missing metrics are not inferred.</p>
+<h2 id="have-the-beneficial-changes-already-been-combined">Have the
+beneficial changes already been combined?</h2>
+<p>Exp007 already combines 03A/DS-CNN, TRAIN-global normalization,
+best-F1 checkpoint selection, LR 0.001, and exponent 0.75. Exp009 uses
+that checkpoint and adds two-window aggregation. This is the currently
+supported combination; another training run is not required merely to
+rename it “all improvements”.</p>
+<p>A lower LR benefited some Small CNN runs but not DS/03A; the tested
+weight decay and time masking reduced DS/03A performance. The three
+changes were therefore not combined. Effects depend on the model and
+training configuration, and components may interact. Individually
+beneficial changes do not necessarily remain beneficial together;
+retaining negative results explains the final choice.</p>
+<h1
+id="detailed-results-for-the-exp007-reference-configuration">Detailed
+Results for the exp007 Reference Configuration</h1>
+<h2 id="comparison-of-all-eight-configurations">Comparison of all eight
+configurations</h2>
+<table>
+<caption>All eight exp007 runs. F1 scores are percentages; TEST was not
+evaluated.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Frontend</th>
+<th style="text-align: left;">Model</th>
+<th style="text-align: right;">Params</th>
+<th style="text-align: right;">Epoch</th>
+<th style="text-align: right;">VAL Window</th>
+<th style="text-align: right;">VAL Source</th>
+<th style="text-align: right;">TRAIN eval</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">03A</td>
+<td style="text-align: left;">Small CNN</td>
+<td style="text-align: right;">23,668</td>
+<td style="text-align: right;">26</td>
+<td style="text-align: right;">57.57</td>
+<td style="text-align: right;">73.04</td>
+<td style="text-align: right;">66.51</td>
+</tr>
+<tr>
+<td style="text-align: left;">03A</td>
+<td style="text-align: left;">DS-CNN</td>
+<td style="text-align: right;">6,244</td>
+<td style="text-align: right;">26</td>
+<td style="text-align: right;">60.97</td>
+<td style="text-align: right;">74.89</td>
+<td style="text-align: right;">74.31</td>
+</tr>
+<tr>
+<td style="text-align: left;">03A</td>
+<td style="text-align: left;">TC-ResNet8</td>
+<td style="text-align: right;">65,940</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">60.17</td>
+<td style="text-align: right;">72.16</td>
+<td style="text-align: right;">75.59</td>
+</tr>
+<tr>
+<td style="text-align: left;">03A</td>
+<td style="text-align: left;">CNN-LSTM</td>
+<td style="text-align: right;">13,428</td>
+<td style="text-align: right;">24</td>
+<td style="text-align: right;">58.85</td>
+<td style="text-align: right;">68.28</td>
+<td style="text-align: right;">64.36</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B</td>
+<td style="text-align: left;">Small CNN</td>
+<td style="text-align: right;">23,668</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">49.77</td>
+<td style="text-align: right;">60.01</td>
+<td style="text-align: right;">54.94</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B</td>
+<td style="text-align: left;">DS-CNN</td>
+<td style="text-align: right;">6,244</td>
+<td style="text-align: right;">20</td>
+<td style="text-align: right;">52.52</td>
+<td style="text-align: right;">62.50</td>
+<td style="text-align: right;">63.50</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B</td>
+<td style="text-align: left;">TC-ResNet8</td>
+<td style="text-align: right;">64,788</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">50.80</td>
+<td style="text-align: right;">60.68</td>
+<td style="text-align: right;">61.46</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B</td>
+<td style="text-align: left;">CNN-LSTM</td>
+<td style="text-align: right;">13,428</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">50.72</td>
+<td style="text-align: right;">60.09</td>
+<td style="text-align: right;">54.49</td>
+</tr>
+</tbody>
+</table>
+<p>03A outperformed 03B for every model in this experiment. DS-CNN/03A
+achieved the highest Window and Source F1 despite having the fewest
+parameters. Small CNN approached its Source F1 but had lower Window F1;
+TC approached its Window F1 with many more parameters. DS is selected on
+development performance and parameter footprint, not established INT8
+performance or measured latency.</p>
+<figure>
+<img src="images/frontend_comparison.png" />
+<figcaption>Frontend comparison in exp007 using identical labels,
+partitions, and example IDs. The zero-based axis avoids exaggerating
+differences.</figcaption>
+</figure>
+<h2 id="per-class-metrics-and-confusion-for-ds-cnn03a">Per-class metrics
+and confusion for DS-CNN/03A</h2>
+<table>
+<caption>Per-class validation results for exp007 DS-CNN/03A. P, R, and
+F1 are percentages.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Label</th>
+<th style="text-align: right;">Windows</th>
+<th style="text-align: right;">P</th>
+<th style="text-align: right;">R</th>
+<th style="text-align: right;">Window F1</th>
+<th style="text-align: right;">Sources</th>
+<th style="text-align: right;">Source F1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Ara</td>
+<td style="text-align: right;">2220</td>
+<td style="text-align: right;">69.66</td>
+<td style="text-align: right;">73.83</td>
+<td style="text-align: right;">71.68</td>
+<td style="text-align: right;">77</td>
+<td style="text-align: right;">79.22</td>
+</tr>
+<tr>
+<td style="text-align: left;">Fun</td>
+<td style="text-align: right;">1120</td>
+<td style="text-align: right;">72.82</td>
+<td style="text-align: right;">65.54</td>
+<td style="text-align: right;">68.98</td>
+<td style="text-align: right;">37</td>
+<td style="text-align: right;">79.41</td>
+</tr>
+<tr>
+<td style="text-align: left;">Squ</td>
+<td style="text-align: right;">295</td>
+<td style="text-align: right;">38.40</td>
+<td style="text-align: right;">48.81</td>
+<td style="text-align: right;">42.99</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">69.23</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cpx</td>
+<td style="text-align: right;">1302</td>
+<td style="text-align: right;">62.78</td>
+<td style="text-align: right;">57.91</td>
+<td style="text-align: right;">60.25</td>
+<td style="text-align: right;">50</td>
+<td style="text-align: right;">71.70</td>
+</tr>
+</tbody>
+</table>
+<table>
+<caption>Exp007 validation-window confusion matrix: rows are true labels
+and columns are predictions.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">True / Predicted</th>
+<th style="text-align: right;">Ara</th>
+<th style="text-align: right;">Fun</th>
+<th style="text-align: right;">Squ</th>
+<th style="text-align: right;">Cpx</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Ara</td>
+<td style="text-align: right;">1639</td>
+<td style="text-align: right;">92</td>
+<td style="text-align: right;">147</td>
+<td style="text-align: right;">342</td>
+</tr>
+<tr>
+<td style="text-align: left;">Fun</td>
+<td style="text-align: right;">309</td>
+<td style="text-align: right;">734</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">67</td>
+</tr>
+<tr>
+<td style="text-align: left;">Squ</td>
+<td style="text-align: right;">97</td>
+<td style="text-align: right;">16</td>
+<td style="text-align: right;">144</td>
+<td style="text-align: right;">38</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cpx</td>
+<td style="text-align: right;">308</td>
+<td style="text-align: right;">166</td>
+<td style="text-align: right;">74</td>
+<td style="text-align: right;">754</td>
+</tr>
+</tbody>
+</table>
+<p>Ara–Cpx confusions numbered 342 and 308 windows in the two
+directions; 309 Fun windows were predicted as Ara. Squ had 144 TP, 231
+FP, and 151 FN. Both false positives and false negatives remain, so
+increasing its weight or prediction frequency cannot automatically
+resolve both. One Squ validation source represents
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mn>13</mn><mo>=</mo><mn>7.69</mn></mrow><annotation encoding="application/x-tex">1/13=7.69</annotation></semantics></math>
+percentage points of source recall; the small support requires caution
+when interpreting source-level scores.</p>
+<p>Source aggregation achieved macro-F1 74.89%, with 135/177 sources
+correctly classified. Per-class Source F1 was approximately 79.22% for
+Ara, 79.41% for Fun, 69.23% for Squ, and 71.70% for Cpx. This is a
+different endpoint: combining windows improves the source decision
+without changing individual-window scores. The 74.89% result should not
+be presented alone as “model accuracy”.</p>
+<h2 id="learning-histories-and-the-generalization-gap">Learning
+histories and the generalization gap</h2>
+<figure>
+<img src="images/learning_histories.png" />
+<figcaption>Saved DS-CNN/03A histories for exp007 and exp008. Online
+TRAIN differs from TRAIN-eval; stopping uses loss and selection uses F1.
+No exp010 history is inferred.</figcaption>
+</figure>
+<p>Histories record learning at every epoch rather than only the final
+result. The exp007 checkpoint selected at epoch 26 has TRAIN-eval F1
+74.31% and validation F1 60.97%. The 13.34-point gap is consistent with
+limited generalization. However, TRAIN-eval is not near 100%, and some
+TRAIN sources remain repeatedly incorrect, so overfitting is not the
+only possible explanation. Lower online TRAIN F1 can reflect dropout and
+changing checkpoints rather than a metric implementation error.</p>
+<p>Exp008 reduced the gap to approximately 11.93 points but also reduced
+Window F1. Exp010 reduced the gap to 11.01 points while Window F1
+declined substantially. A smaller gap with weak performance on both sets
+is not preferable to higher validation performance. The objective is to
+improve the predefined endpoint while monitoring class trade-offs, not
+minimize the gap regardless of scores.</p>
+<h1 id="sec:aggregation">Exp009: Fixed-Duration Two-Window
+Aggregation</h1>
+<h2 id="method-and-population">Method and population</h2>
+<p>Windows are sorted by <code>example_index</code> within each labelled
+clip <code>id</code> and paired as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mo>,</mo><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mo>,</mo><mn>3</mn><mo stretchy="false" form="postfix">)</mo><mo>,</mo><mi>…</mi></mrow><annotation encoding="application/x-tex">(0,1),(2,3),\ldots</annotation></semantics></math>.
+UIDs, sources, labels, partitions, starts, and continuity are checked.
+Pairs never cross clip boundaries, even within the same source, or gaps.
+Each window belongs to one pair. Predictions use argmax of mean softmax
+probabilities, with ties resolved by the lowest class index.</p>
+<p>Two contexts span
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.975</mn><mo>+</mo><mn>0.96</mn><mo>=</mo><mn>1.935</mn></mrow><annotation encoding="application/x-tex">0.975+0.96=1.935</annotation></semantics></math>
+seconds, including 15 ms of shared audio. This is the required
+observation duration, not measured hardware inference latency. The final
+window of an odd-length sequence is excluded and recorded in
+<code>excluded_windows.csv</code>. Of 4,937 validation windows, 159 are
+excluded; the remaining 4,778 form 2,389 pairs, retaining all 177
+sources and 269 clips.</p>
+<table id="tab:aggregate">
+<caption>Three exp009 endpoints. The primary comparison is pairs versus
+matched single windows, not the full validation population.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Endpoint</th>
+<th style="text-align: right;">Decisions</th>
+<th style="text-align: right;">Macro-F1 (%)</th>
+<th style="text-align: right;">Accuracy (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Full validation, single windows</td>
+<td style="text-align: right;">4,937</td>
+<td style="text-align: right;">60.9748</td>
+<td style="text-align: right;">66.2548</td>
+</tr>
+<tr>
+<td style="text-align: left;">Matched single windows</td>
+<td style="text-align: right;">4,778</td>
+<td style="text-align: right;">61.3245</td>
+<td style="text-align: right;">66.6178</td>
+</tr>
+<tr>
+<td style="text-align: left;">Two-window pairs</td>
+<td style="text-align: right;">2,389</td>
+<td style="text-align: right;">64.9010</td>
+<td style="text-align: right;">69.9456</td>
+</tr>
+</tbody>
+</table>
+<p>The primary comparison uses the same retained audio but different
+decision counts and evaluation units. The 3.93-point difference between
+60.97% and 64.90% is not the primary aggregation effect: approximately
+0.35 points reflect the population change after tail exclusion. The
+defined effect is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>64.90</mn><mo>−</mo><mn>61.32</mn><mo>=</mo><mn>3.58</mn></mrow><annotation encoding="application/x-tex">64.90-61.32=3.58</annotation></semantics></math>
+points. Decisions remain dependent within sources, and the small context
+overlap is retained and disclosed.</p>
+<table>
+<caption>Per-class F1 on the matched population and paired
+source-bootstrap intervals. Differences and intervals are in percentage
+points.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Label</th>
+<th style="text-align: right;">Single F1 (%)</th>
+<th style="text-align: right;">Pair F1 (%)</th>
+<th style="text-align: right;">Difference</th>
+<th style="text-align: right;">95% CI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Ara</td>
+<td style="text-align: right;">72.02</td>
+<td style="text-align: right;">74.86</td>
+<td style="text-align: right;">2.83</td>
+<td style="text-align: right;">[1.56; 4.10]</td>
+</tr>
+<tr>
+<td style="text-align: left;">Fun</td>
+<td style="text-align: right;">69.32</td>
+<td style="text-align: right;">72.67</td>
+<td style="text-align: right;">3.35</td>
+<td style="text-align: right;">[1.50; 5.19]</td>
+</tr>
+<tr>
+<td style="text-align: left;">Squ</td>
+<td style="text-align: right;">43.37</td>
+<td style="text-align: right;">48.16</td>
+<td style="text-align: right;">4.79</td>
+<td style="text-align: right;">[0.70; 8.24]</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cpx</td>
+<td style="text-align: right;">60.59</td>
+<td style="text-align: right;">63.91</td>
+<td style="text-align: right;">3.33</td>
+<td style="text-align: right;">[1.42; 5.22]</td>
+</tr>
+</tbody>
+</table>
+<h2
+id="interpretation-and-implications-for-model-development">Interpretation
+and implications for model development</h2>
+<p>The macro-F1 difference is 3.5765 points, with a 95% source-bootstrap
+interval of [2.2220, 4.8548]. This is exploratory evidence for
+fixed-duration aggregation of a validation-selected checkpoint; it does
+not cover seed variability or repeated tuning. Every class improved,
+including Squ from 43.37% to 48.16% on the matched population, although
+its score remained below those of the two larger classes.</p>
+<p>Exp009 shows that additional observations can improve decisions
+without increasing parameter count. However, the 1.935-second
+observation requirement must be considered against future product needs;
+latency and energy have not been measured. Unrestricted-duration Source
+F1 cannot substitute for this experiment. Repeatedly optimizing
+aggregation length on the same validation set would also prevent
+interpreting the resulting interval as a confirmatory test.</p>
+<h1 id="experimental-integrity-and-performance-diagnostics">Experimental
+Integrity and Performance Diagnostics</h1>
+<h2 id="issues-examined">Issues examined</h2>
+<p>The exp007/008 artifact audit confirms agreement between recorded
+metrics and class order, probability argmax, support, confusion-derived
+F1, and source mean-softmax aggregation. Weighted CE was recomputed
+using the denominator in Equation 5; weights and normalization were
+fitted on TRAIN. Checkpoint selection, best-model copies, and hashes
+agree with histories and results. All 16 runs completed, logs match
+epoch counts, and code/configuration identities match stored
+provenance.</p>
+<p>Cache and split identities agree across experiments and with the
+contract. The audit found no evidence of stale checkpoints or silently
+regenerated caches in these runs. However, hash verification is not a
+fresh checkpoint forward-pass reproduction, and report preparation did
+not include a complete remote raw-data/cache scan. These limits are
+retained rather than asserting that the entire pipeline is incapable of
+error.</p>
+<table>
+<caption>Integrity checks and the limits of their evidence.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Item</th>
+<th style="text-align: left;">Established evidence</th>
+<th style="text-align: left;">Not established</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Item</td>
+<td style="text-align: left;">Established evidence</td>
+<td style="text-align: left;">Not established</td>
+</tr>
+<tr>
+<td style="text-align: left;">Source leakage</td>
+<td style="text-align: left;">No shared source names across partitions;
+matching UIDs/parents.</td>
+<td style="text-align: left;">Individual, session, or date
+independence.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Duplicate WAV files</td>
+<td style="text-align: left;">No exact duplicates in the pinned
+inventory.</td>
+<td style="text-align: left;">Absence of near-duplicates or
+non-byte-identical content overlap.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Metrics/class order</td>
+<td style="text-align: left;">Consistent F1, confusion, support,
+probabilities, and argmax in exp007/008.</td>
+<td style="text-align: left;">Replication through fresh checkpoint
+inference.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Weights / normalization</td>
+<td style="text-align: left;">TRAIN-only counts/statistics; matching
+formulas and artifacts.</td>
+<td style="text-align: left;">Optimality of weighted CE for every
+class.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Checkpoints/history</td>
+<td style="text-align: left;">Matching hashes, selection, copies, and
+epoch logs.</td>
+<td style="text-align: left;">Absence of all remote-execution errors
+beyond recorded provenance.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Caches</td>
+<td style="text-align: left;">Accepted identities agree across
+experiments and contract.</td>
+<td style="text-align: left;">ESP32 parity or a fresh all-Drive byte
+scan during report preparation.</td>
+</tr>
+<tr>
+<td style="text-align: left;">TEST in development</td>
+<td style="text-align: left;">No TEST evaluation in exp002–008/010;
+exp009 uses VAL.</td>
+<td style="text-align: left;">Absence of human influence from historical
+TEST results.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Fixed outputs</td>
+<td style="text-align: left;">Unique IDs and output guards prevent
+tool-mediated overwrites.</td>
+<td style="text-align: left;">Absolute read-only permissions on
+Drive.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Training flag</td>
+<td style="text-align: left;">Delivered code sets <code>False</code>;
+execution requires explicit enabling.</td>
+<td style="text-align: left;">Automatic reset to <code>False</code> in
+every user’s notebook after execution.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="train-signal-audits-noise-is-not-a-sufficient-explanation">TRAIN
+signal audits: noise is not a sufficient explanation</h2>
+<p>The preliminary post-exp005 audit examined 85 clips from 85 sources,
+covering 1,542 intervals stratified by species and method. The
+post-exp007 audit selected 30 sources by prediction outcome, forming 15
+incorrect/correct pairs and covering 43 WAV files and 484 windows. No
+entirely zero intervals or digital full-scale clipping were observed;
+hashes, geometry, and caches were valid. Thirty-six of 484 windows had
+RMS below
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>60</mn></mrow><annotation encoding="application/x-tex">-60</annotation></semantics></math> dBFS
+and belonged to four incorrect sources, but six of 15 incorrect sources
+had higher median RMS than their controls. Some incorrect sources also
+retained clear harmonic structure.</p>
+<p>RMS, PSD, spectral flatness, and peak contrast are proxies, not
+validated SNR measurements, mosquito-activity annotations, or proof of
+incorrect labels. The outcome-selected sample is not a random
+representation of TRAIN. Raw data and caches were therefore retained,
+without RMS-based exclusions or uniform gain increases intended solely
+to improve scores. Data changes would require separate blinded review or
+annotation and a new dataset protocol.</p>
+<h2 id="hypotheses-and-falsifiable-diagnostics">Hypotheses and
+falsifiable diagnostics</h2>
+<div class="landscape">
+<table>
+<caption>Diagnostic hypotheses: observed results are distinguished from
+unconfirmed mechanisms.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Hypothesis</th>
+<th style="text-align: left;">Supporting evidence</th>
+<th style="text-align: left;">Contrary or missing evidence</th>
+<th style="text-align: left;">Confidence</th>
+<th style="text-align: left;">Appropriate small test</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Hypothesis</td>
+<td style="text-align: left;">Supporting evidence</td>
+<td style="text-align: left;">Contrary or missing evidence</td>
+<td style="text-align: left;">Confidence</td>
+<td style="text-align: left;">Appropriate small test</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B representation is less suitable for
+the current configuration</td>
+<td style="text-align: left;">Below 03A for every model in exp007/008;
+especially weak Squ results.</td>
+<td style="text-align: left;">Multiple frontend operations differ; no
+isolated cause.</td>
+<td style="text-align: left;">High for outcome; moderate for
+mechanism.</td>
+<td style="text-align: left;">After a fit probe, one frontend ablation
+with a new cache ID.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Windows contain insufficient or unstable
+evidence</td>
+<td style="text-align: left;">Higher source scores; exp009 improves on
+matched audio.</td>
+<td style="text-align: left;">Aggregation changes decision units;
+persistent source errors; activity unverified.</td>
+<td style="text-align: left;">Moderate–high.</td>
+<td style="text-align: left;">Retain the two-window endpoint; confirm
+across seeds/holdout after freezing.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Source/acquisition variability</td>
+<td style="text-align: left;">Recall differs by
+species<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>×</mi><annotation encoding="application/x-tex">\times</annotation></semantics></math>method;
+repeated source errors.</td>
+<td style="text-align: left;">Confounding and small subgroups prevent
+causal attribution to method.</td>
+<td style="text-align: left;">Moderate.</td>
+<td style="text-align: left;">Blinded TRAIN listening/annotation,
+matched by species and method.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Limited minority-class discrimination</td>
+<td style="text-align: left;">Squ has 63 TRAIN and 13 VAL sources, both
+FP/FN, and weighting trade-offs.</td>
+<td style="text-align: left;">Other classes also fail; weighting creates
+no new information.</td>
+<td style="text-align: left;">High.</td>
+<td style="text-align: left;">Monitor Squ P/R/F1 for every intervention;
+hold weights fixed in other tests.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Overfitting contributes</td>
+<td style="text-align: left;">DS/TC TRAIN–VAL gaps and late
+plateaus.</td>
+<td style="text-align: left;">Weight decay did not help DS; TRAIN is not
+near 100%; exp010 lowers both scores.</td>
+<td style="text-align: left;">Moderate.</td>
+<td style="text-align: left;">Small fixed-TRAIN fit probe; not yet
+performed.</td>
+</tr>
+<tr>
+<td style="text-align: left;">The tested mask is too strong or
+unsuitable</td>
+<td style="text-align: left;">Exp010 TRAIN, VAL, and source scores
+decline.</td>
+<td style="text-align: left;">Full history/per-class review pending;
+stopping may contribute.</td>
+<td style="text-align: left;">Moderate for harm; low for mechanism.</td>
+<td style="text-align: left;">Inspect artifacts before increasing
+masking.</td>
+</tr>
+<tr>
+<td style="text-align: left;">BN/optimizer interactions destabilize
+Small CNN</td>
+<td style="text-align: left;">Large epoch-to-epoch swings in exp008
+review.</td>
+<td style="text-align: left;">No controlled recalibration; DS also uses
+BN but is more stable.</td>
+<td style="text-align: left;">Low–moderate.</td>
+<td style="text-align: left;">If revisiting Small CNN, test TRAIN-only
+BN recalibration.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Loss stopping truncates F1
+improvement</td>
+<td style="text-align: left;">TC best F1 occurs late, at the final epoch
+in exp007.</td>
+<td style="text-align: left;">Future trajectory unobserved; DS lacks the
+same boundary effect.</td>
+<td style="text-align: left;">Low–moderate.</td>
+<td style="text-align: left;">One stopping-monitor ablation if TC is
+revisited.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Metric/cache/checkpoint corruption</td>
+<td style="text-align: left;">Always a possibility requiring
+checks.</td>
+<td style="text-align: left;">Detailed integrity audits passed within
+their scope.</td>
+<td style="text-align: left;">Low within scope.</td>
+<td style="text-align: left;">Fresh fixed-checkpoint reproduction if
+mismatches appear.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Widespread label errors</td>
+<td style="text-align: left;">Persistent errors can be consistent with
+label issues.</td>
+<td style="text-align: left;">No contradiction with ground truth;
+predictions do not justify relabelling.</td>
+<td style="text-align: left;">Unestablished.</td>
+<td style="text-align: left;">Independent, blinded annotation or
+biological review.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The current interpretation is a combination of representation limits,
+source/acquisition coverage, minority-class support, and generalization.
+No single cause has been established. In particular, exp010 weakens the
+assumption that adding augmentation necessarily helps, but does not show
+that all augmentation is ineffective.</p>
+<h1 id="lessons-from-related-research">Lessons from Related
+Research</h1>
+<h2
+id="humbugdb-provenance-and-protocol-rather-than-headline-scores">HumBugDB:
+provenance and protocol rather than headline scores</h2>
+<p>HumBugDB distinguishes mosquito event detection from species
+classification and provides metadata and benchmark code [1]. Relevant
+lessons concern recording provenance, feature specification, and
+imbalance. This project’s four-label Core uses different partitions,
+models, and metrics from the original benchmark. 03A verifies a
+VGGish-style transform; 03B is not the paper’s “Feature B”. Published
+ROC/PR-AUC or pretrained-model results therefore do not predict F1 for
+the current compact models.</p>
+<h2
+id="tinyml-mosquito-prototypes-establishing-deployment-evidence">TinyML
+mosquito prototypes: establishing deployment evidence</h2>
+<p><em>Classifying mosquito wingbeat sound using TinyML</em> and its
+author repository illustrate acoustic classification using Edge Impulse
+and compact devices [3]. The relevant lesson is to evaluate converted
+models, operator support, memory, latency, and power. Its labels, source
+population, and evaluation differ from this Core; headline accuracy is
+not a directly comparable macro-F1 target. Overlapping windows also do
+not create additional independent sources. The team retains source-based
+partitions and defers hardware claims until device measurements are
+available.</p>
+<h2 id="compact-architectures-and-masking">Compact architectures and
+masking</h2>
+<p><em>Hello Edge</em> and TC-ResNet motivate depthwise-separable and
+temporal convolution for keyword spotting [4, 5]. The project adopts
+compact architectural principles without assuming that speech results
+transfer directly to mosquito recognition. WbNet/ResNet attention
+studies wingbeat classification using different models, features, and
+data [6]. A masking principle may be tested, but a large pretrained
+backbone or its score cannot simply be treated as an equivalent TinyML
+baseline.</p>
+<p>SpecAugment provides methodological precedent for feature masking in
+speech [7]. Exp010 uses only mild time masking, not the complete
+SpecAugment procedure, frequency masking, or time warping. The negative
+result is retained because an intervention useful in speech may not
+preserve species-discriminative cues. Strong pitch shifting and
+frequency masking could alter or obscure those cues; neither has been
+tested here.</p>
+<h2 id="distinction-from-synthetic-swarm-classification">Distinction
+from synthetic swarm classification</h2>
+<p><em>Synthetic Swarm Mosquito Dataset for Acoustic Classification: A
+Proof of Concept</em> investigates multi-species recognition in
+synthesized audio [8]. The present scope is narrower and different: real
+recordings, four taxa, single-label classification, compact models, and
+source-grouped evaluation. It neither replaces the swarm experiment nor
+reproduces its headline result.</p>
+<p>A key lesson is to distinguish species presence, the number of mixed
+source events, and the number of actual individuals. Any future
+synthesis should group sources before mixing, preserve provenance, and
+define gain, SNR, and temporal support precisely. This report creates no
+synthetic mixtures, makes no mosquito-counting claim, and does not treat
+unlabelled field audio as a quantitative benchmark. Its contribution
+lies in controlled data handling, fair frontend comparison, and
+traceable decisions rather than model renaming.</p>
+<h1 id="retained-results-remaining-work-and-decision-criteria">Retained
+Results, Remaining Work, and Decision Criteria</h1>
+<h2 id="configuration-retained-at-the-reporting-date">Configuration
+retained at the reporting date</h2>
+<table id="tab:final">
+<caption>Reference configuration and the two currently supported
+outputs.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Component</th>
+<th style="text-align: left;">Value / status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Reference model</td>
+<td
+style="text-align: left;"><code>exp_007_power075 / 03A_ds_cnn_seed42</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Frontend/model</td>
+<td style="text-align: left;">03A log-mel / DS-CNN</td>
+</tr>
+<tr>
+<td style="text-align: left;">Normalization</td>
+<td style="text-align: left;">Scalar TRAIN-global z-score</td>
+</tr>
+<tr>
+<td style="text-align: left;">Optimizer</td>
+<td style="text-align: left;">Adam, LR 0.001, weight decay 0</td>
+</tr>
+<tr>
+<td style="text-align: left;">Weighted CE</td>
+<td style="text-align: left;">Exponent 0.75; counts TRAIN</td>
+</tr>
+<tr>
+<td style="text-align: left;">Seed/batch/max/patience</td>
+<td style="text-align: left;">42 /64 /50 /8</td>
+</tr>
+<tr>
+<td style="text-align: left;">Selection / stopping</td>
+<td style="text-align: left;">Max VAL macro-F1 / minimum weighted VAL
+loss</td>
+</tr>
+<tr>
+<td style="text-align: left;">Augmentation / pretraining</td>
+<td style="text-align: left;">None / none</td>
+</tr>
+<tr>
+<td style="text-align: left;">Parameters / checkpoint</td>
+<td style="text-align: left;">6,244 /47,329 byte serialized PyTorch</td>
+</tr>
+<tr>
+<td style="text-align: left;">Single-window validation</td>
+<td style="text-align: left;">Macro-F1 60.97%; accuracy 66.25%; support
+4,937</td>
+</tr>
+<tr>
+<td style="text-align: left;">Source validation</td>
+<td style="text-align: left;">Macro-F1 74.89%; 135/177 sources correct;
+variable duration</td>
+</tr>
+<tr>
+<td style="text-align: left;">Two-window diagnostic</td>
+<td style="text-align: left;">Exp009: F1 64.90% on 2,389 pairs; matched
+baseline 61.32%</td>
+</tr>
+<tr>
+<td style="text-align: left;">TEST and deployment</td>
+<td style="text-align: left;">Final model not confirmed; ESP32/INT8 not
+measured</td>
+</tr>
+</tbody>
+</table>
+<p>The 47,329-byte size is a serialized checkpoint including state and
+overhead, not deployed INT8 flash usage or peak RAM. Two options remain
+distinct: a single-window endpoint with 0.975 seconds of audio and a
+two-window endpoint with 1.935 seconds. No product-level latency choice
+has been made, and neither endpoint is omitted to strengthen the
+headline result.</p>
+<h2 id="minimal-next-sequence-proposed-not-completed">Minimal next
+sequence: proposed, not completed</h2>
+<p>First, review the complete exp010 artifacts: history, selected and
+minimum-loss epochs, per-class precision/recall/F1, confusion, effective
+configuration, and logs. Any mismatch should be corrected at the
+relevant portability, metric, or runtime layer and revalidated, without
+changing the scientific configuration under the same ID. If records are
+consistent, retain exp010 as a negative ablation of the specified
+masking strength rather than immediately increasing regularization.</p>
+<p>If investigating single-window learning further, a small fit
+diagnostic could use 128 TRAIN windows from 32 class-balanced TRAIN
+sources, retaining model and features without augmentation. It would
+test fitting capacity on that subset, without using VAL/TEST to select
+the diagnostic. Failure to fit would motivate checking the optimizer,
+label mapping, and features before changing the frontend. Successful
+fitting would prioritize representation, generalization, and coverage.
+This diagnostic remains proposed and is not counted among completed
+experiments.</p>
+<p>After freezing the reference configuration, confirm exp007 with two
+additional prespecified seeds and report all three rather than selecting
+the best. Aggregation confirmation should use each seed’s checkpoint and
+the same pairing rule while retaining a separate single-window endpoint.
+Only afterward, if needed, consider a targeted frontend ablation with a
+new cache version. A simultaneous sweep of LR, weights, masking, and
+architectures is not proposed.</p>
+<p>Final evaluation must disclose TEST history. An independent
+confirmatory claim requires an appropriate session, individual, or
+external holdout that is not used for tuning. Conversion and hardware
+parity should follow clarification of model behaviour;
+background/unknown evaluation must be added if environmental mosquito
+detection is intended. These steps do not guarantee Window F1 of
+70–80%.</p>
+<h1 id="conclusion">Conclusion</h1>
+<p>The project establishes a traceable workflow from metadata and raw
+audio to models and review. Explicit filters define the four-taxon Core;
+source partitioning precedes segmentation; geometry and shared
+population are frozen; and frontend verification has a clearly stated
+numerical scope. Model suites and ablations preserve configurations,
+input identities, checkpoints, histories, predictions, and logs under
+separate IDs, allowing negative results to remain informative and
+preventing their replacement by later runs.</p>
+<p>The principal result is exp007 DS-CNN/03A: 6,244 parameters,
+validation Window macro-F1 60.97%, and Source macro-F1 74.89%. Using the
+same model, exp009 raises the matched endpoint from 61.32% to 64.90% by
+combining two windows spanning 1.935 seconds. These answer different
+questions and should be reported together. Exp008 and exp010 are not
+retained because they did not improve DS under the tested settings.</p>
+<p>The ten milestones show that current limitations cannot be reduced to
+model size, noise alone, or an assumption that more augmentation will
+help. Squ imbalance, source/acquisition variation, short-window
+ambiguity, and generalization have evidence of differing strength.
+Targeted diagnostics and configuration confirmation are needed rather
+than an unrestricted search for a favourable score.</p>
+<p>The outcome is a <strong>traceable development reference</strong> and
+a <strong>fixed-duration aggregation diagnostic with improved validation
+performance</strong>. It is not yet an independent final evaluation or a
+complete ESP32 system. Transparent reporting of populations, endpoints,
+seeds, negative results, and TEST history is part of the scientific
+evidence.</p>
+<h1 id="app:matrix">Complete Result Matrices Across Experiments</h1>
+<h2 id="validation-window-macro-f1">Validation Window macro-F1</h2>
+<table>
+<caption>Validation Window macro-F1 for exp001–008, in percent.
+Exp009/010 are reported separately because their plans or endpoints
+differ.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Run</th>
+<th style="text-align: right;">E001</th>
+<th style="text-align: right;">E002</th>
+<th style="text-align: right;">E003</th>
+<th style="text-align: right;">E004</th>
+<th style="text-align: right;">E005</th>
+<th style="text-align: right;">E006</th>
+<th style="text-align: right;">E007</th>
+<th style="text-align: right;">E008</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">03A Small CNN</td>
+<td style="text-align: right;">44.27</td>
+<td style="text-align: right;">50.34</td>
+<td style="text-align: right;">51.08</td>
+<td style="text-align: right;">54.18</td>
+<td style="text-align: right;">56.67</td>
+<td style="text-align: right;">59.20</td>
+<td style="text-align: right;">57.57</td>
+<td style="text-align: right;">58.86</td>
+</tr>
+<tr>
+<td style="text-align: left;">03A DS-CNN</td>
+<td style="text-align: right;">52.13</td>
+<td style="text-align: right;">54.10</td>
+<td style="text-align: right;">53.66</td>
+<td style="text-align: right;">56.16</td>
+<td style="text-align: right;">56.02</td>
+<td style="text-align: right;">59.92</td>
+<td style="text-align: right;">60.97</td>
+<td style="text-align: right;">59.90</td>
+</tr>
+<tr>
+<td style="text-align: left;">03A TC-ResNet8</td>
+<td style="text-align: right;">40.64</td>
+<td style="text-align: right;">40.64</td>
+<td style="text-align: right;">53.30</td>
+<td style="text-align: right;">60.38</td>
+<td style="text-align: right;">56.04</td>
+<td style="text-align: right;">59.53</td>
+<td style="text-align: right;">60.17</td>
+<td style="text-align: right;">58.97</td>
+</tr>
+<tr>
+<td style="text-align: left;">03A CNN-LSTM</td>
+<td style="text-align: right;">54.82</td>
+<td style="text-align: right;">54.82</td>
+<td style="text-align: right;">51.67</td>
+<td style="text-align: right;">55.95</td>
+<td style="text-align: right;">53.95</td>
+<td style="text-align: right;">57.77</td>
+<td style="text-align: right;">58.85</td>
+<td style="text-align: right;">54.94</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B Small CNN</td>
+<td style="text-align: right;">43.90</td>
+<td style="text-align: right;">48.15</td>
+<td style="text-align: right;">50.91</td>
+<td style="text-align: right;">46.48</td>
+<td style="text-align: right;">51.15</td>
+<td style="text-align: right;">50.25</td>
+<td style="text-align: right;">49.77</td>
+<td style="text-align: right;">48.84</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B DS-CNN</td>
+<td style="text-align: right;">49.64</td>
+<td style="text-align: right;">51.38</td>
+<td style="text-align: right;">50.85</td>
+<td style="text-align: right;">52.02</td>
+<td style="text-align: right;">51.10</td>
+<td style="text-align: right;">54.30</td>
+<td style="text-align: right;">52.52</td>
+<td style="text-align: right;">52.74</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B TC-ResNet8</td>
+<td style="text-align: right;">49.97</td>
+<td style="text-align: right;">52.16</td>
+<td style="text-align: right;">49.96</td>
+<td style="text-align: right;">50.49</td>
+<td style="text-align: right;">50.08</td>
+<td style="text-align: right;">51.58</td>
+<td style="text-align: right;">50.80</td>
+<td style="text-align: right;">52.05</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B CNN-LSTM</td>
+<td style="text-align: right;">46.03</td>
+<td style="text-align: right;">48.88</td>
+<td style="text-align: right;">50.54</td>
+<td style="text-align: right;">48.94</td>
+<td style="text-align: right;">49.21</td>
+<td style="text-align: right;">49.68</td>
+<td style="text-align: right;">50.72</td>
+<td style="text-align: right;">49.99</td>
+</tr>
+</tbody>
+</table>
+<p>Exp001 values are F1 at checkpoints selected by minimum weighted
+loss; from exp002 onward, they are maximum validation macro-F1 along the
+training trajectory. Experiments share the frozen population, with
+declared changes to selection and training configuration. The final
+column is not an ensemble. Within each suite, the leading score is the
+highest observed validation result, not confirmed superiority across
+seeds or holdouts.</p>
+<h2 id="validation-source-macro-f1">Validation Source macro-F1</h2>
+<table>
+<caption>Validation Source macro-F1 for exp002–008, in percent; distinct
+from Window F1.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Run</th>
+<th style="text-align: right;">E002</th>
+<th style="text-align: right;">E003</th>
+<th style="text-align: right;">E004</th>
+<th style="text-align: right;">E005</th>
+<th style="text-align: right;">E006</th>
+<th style="text-align: right;">E007</th>
+<th style="text-align: right;">E008</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">03A Small CNN</td>
+<td style="text-align: right;">59.07</td>
+<td style="text-align: right;">62.79</td>
+<td style="text-align: right;">65.46</td>
+<td style="text-align: right;">69.11</td>
+<td style="text-align: right;">68.27</td>
+<td style="text-align: right;">73.04</td>
+<td style="text-align: right;">73.54</td>
+</tr>
+<tr>
+<td style="text-align: left;">03A DS-CNN</td>
+<td style="text-align: right;">55.34</td>
+<td style="text-align: right;">65.65</td>
+<td style="text-align: right;">67.45</td>
+<td style="text-align: right;">67.66</td>
+<td style="text-align: right;">72.20</td>
+<td style="text-align: right;">74.89</td>
+<td style="text-align: right;">73.28</td>
+</tr>
+<tr>
+<td style="text-align: left;">03A TC-ResNet8</td>
+<td style="text-align: right;">47.99</td>
+<td style="text-align: right;">64.59</td>
+<td style="text-align: right;">65.65</td>
+<td style="text-align: right;">67.03</td>
+<td style="text-align: right;">67.89</td>
+<td style="text-align: right;">72.16</td>
+<td style="text-align: right;">67.54</td>
+</tr>
+<tr>
+<td style="text-align: left;">03A CNN-LSTM</td>
+<td style="text-align: right;">64.44</td>
+<td style="text-align: right;">60.81</td>
+<td style="text-align: right;">66.29</td>
+<td style="text-align: right;">62.27</td>
+<td style="text-align: right;">65.37</td>
+<td style="text-align: right;">68.28</td>
+<td style="text-align: right;">64.24</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B Small CNN</td>
+<td style="text-align: right;">54.12</td>
+<td style="text-align: right;">58.17</td>
+<td style="text-align: right;">52.43</td>
+<td style="text-align: right;">61.33</td>
+<td style="text-align: right;">60.68</td>
+<td style="text-align: right;">60.01</td>
+<td style="text-align: right;">54.11</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B DS-CNN</td>
+<td style="text-align: right;">61.11</td>
+<td style="text-align: right;">60.64</td>
+<td style="text-align: right;">58.61</td>
+<td style="text-align: right;">59.50</td>
+<td style="text-align: right;">63.00</td>
+<td style="text-align: right;">62.50</td>
+<td style="text-align: right;">63.16</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B TC-ResNet8</td>
+<td style="text-align: right;">65.35</td>
+<td style="text-align: right;">64.60</td>
+<td style="text-align: right;">61.64</td>
+<td style="text-align: right;">63.39</td>
+<td style="text-align: right;">53.74</td>
+<td style="text-align: right;">60.68</td>
+<td style="text-align: right;">59.09</td>
+</tr>
+<tr>
+<td style="text-align: left;">03B CNN-LSTM</td>
+<td style="text-align: right;">58.17</td>
+<td style="text-align: right;">61.56</td>
+<td style="text-align: right;">56.06</td>
+<td style="text-align: right;">60.83</td>
+<td style="text-align: right;">50.98</td>
+<td style="text-align: right;">60.09</td>
+<td style="text-align: right;">54.87</td>
+</tr>
+</tbody>
+</table>
+<p>Source metrics are secondary diagnostics, with varying duration and
+clips per source. They should not be pooled with the Window matrix to
+calculate an overall mean improvement. Exp001 is omitted because
+corresponding selected-validation source evidence is unavailable; a
+missing score is not inferred.</p>
+<h2 id="targeted-exp010">Targeted exp010</h2>
+<table>
+<caption>Exp010 results saved in 04D. Only available values are
+reported; missing metrics are not inferred.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Run</th>
+<th style="text-align: right;">Epoch</th>
+<th style="text-align: right;">VAL loss</th>
+<th style="text-align: right;">VAL Window F1 (%)</th>
+<th style="text-align: right;">VAL Source F1 (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">03A DS-CNN</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">0.956628</td>
+<td style="text-align: right;">55.3519</td>
+<td style="text-align: right;">68.4974</td>
+</tr>
+</tbody>
+</table>
+<p>TRAIN-eval macro-F1 is 66.3575%, with 6,244 parameters and a
+47,329-byte checkpoint; TEST evaluated is False. The other seven
+configurations were not planned for exp010. NOT RUN is neither a failure
+nor a score of zero.</p>
+<h1 id="reference-conditions-and-configuration-identities">Reference
+Conditions and Configuration Identities</h1>
+<table>
+<caption>Experiment identifiers and reference relationships.
+Configuration paths are relative to the repository.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Stage</th>
+<th style="text-align: left;">Experiment ID</th>
+<th style="text-align: left;">Configuration / protocol</th>
+<th style="text-align: left;">Main reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Stage</td>
+<td style="text-align: left;">Experiment ID</td>
+<td style="text-align: left;">Configuration / protocol</td>
+<td style="text-align: left;">Main reference</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td
+style="text-align: left;"><code>exp_001_First_Run_with_Defult_Params</code></td>
+<td style="text-align: left;"><code>baseline_suite.json</code>; baseline
+engine</td>
+<td style="text-align: left;">Accepted baseline recipe</td>
+</tr>
+<tr>
+<td style="text-align: left;">002</td>
+<td style="text-align: left;"><code>exp_002_control_v2</code></td>
+<td style="text-align: left;"><code>control_v2.json</code>; v2</td>
+<td style="text-align: left;">Baseline selection recipe</td>
+</tr>
+<tr>
+<td style="text-align: left;">003</td>
+<td style="text-align: left;"><code>exp_003_lr3e4</code></td>
+<td style="text-align: left;"><code>lr3e4_v2.json</code>; v2</td>
+<td style="text-align: left;"><code>exp_002_control_v2</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">004</td>
+<td style="text-align: left;"><code>exp_004_train_norm</code></td>
+<td style="text-align: left;"><code>train_norm_v2.json</code>; v2</td>
+<td style="text-align: left;"><code>exp_002_control_v2</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">005</td>
+<td style="text-align: left;"><code>exp_005_norm_lr3e4</code></td>
+<td style="text-align: left;"><code>norm_lr3e4_v2.json</code>; v2</td>
+<td style="text-align: left;"><code>exp_004_train_norm</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">006</td>
+<td style="text-align: left;"><code>exp_006_sqrt_weights</code></td>
+<td style="text-align: left;"><code>sqrt_weights_v3.json</code>; v3</td>
+<td style="text-align: left;"><code>exp_004_train_norm</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">007</td>
+<td style="text-align: left;"><code>exp_007_power075</code></td>
+<td style="text-align: left;"><code>power075_v4.json</code>; v4</td>
+<td style="text-align: left;">Exp004 primary; Exp006 supplementary</td>
+</tr>
+<tr>
+<td style="text-align: left;">008</td>
+<td style="text-align: left;"><code>exp_008_power075_wd1e4</code></td>
+<td style="text-align: left;"><code>power075_wd1e4_v5.json</code>;
+v5</td>
+<td style="text-align: left;"><code>exp_007_power075</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">009</td>
+<td style="text-align: left;"><code>exp_009_two_window_agg</code></td>
+<td style="text-align: left;"><code>bounded_aggregation.py</code>;
+diagnostic</td>
+<td style="text-align: left;">Saved DS/03A exp007</td>
+</tr>
+<tr>
+<td style="text-align: left;">010</td>
+<td style="text-align: left;"><code>exp_010_time_mask</code></td>
+<td style="text-align: left;"><code>time_mask_v6.json</code>; v6</td>
+<td style="text-align: left;">Saved DS/03A exp007</td>
+</tr>
+</tbody>
+</table>
+<p>Configuration files reside in <code>configs/experiments/</code>;
+exp009 does not use a suite training configuration. Training experiments
+retain parent baseline identity
+<code>stage04_colab_seed42_20260929</code>. A reference configuration
+does not imply pretrained initialization from its checkpoint: models are
+still trained from scratch.</p>
+<h1 id="evidence-records-and-traceability">Evidence Records and
+Traceability</h1>
+<h2 id="sources-of-reported-results">Sources of reported results</h2>
+<p><code>docs/PIPELINE.md</code>, <code>docs/DATA_PROVENANCE.md</code>,
+<code>tools/pipeline_contract.py</code>,
+<code>tools/cache_consumer.py</code>, <code>tools/model_zoo.py</code>,
+and the 02/03A/03B audit JSON files define the data and numerical
+contracts. Current manifests provide population and support counts;
+estimates from other studies do not replace Core counts.</p>
+<p>Exp001 uses
+<code>_local_only/reviews/exp_001_review_20260930/evidence.json</code>.
+Exp002–006 use original 04C snapshots preserved before preparation of
+exp003–007 in <code>_local_only/notebook_snapshots/</code>. Exp007/008
+use <code>results/comparison.json</code>,
+<code>results/runs/*/result.json</code>, <code>history.json</code>,
+<code>confusion_matrix.json</code>, and related artifacts in the
+reviewed copy at
+<code>_local_only/reviews/exp008_research_diagnosis_20261002/storage/experiments/</code>.
+Supplementary exp004/006/007 reviews checked user-provided prediction
+CSVs against frozen manifests; this scope is distinguished from
+runner-recorded hash authentication.</p>
+<p>Exp009 uses saved output from
+<code>notebooks/current/04C_compare_models.ipynb</code>, with the method
+in <code>tools/bounded_aggregation.py</code> and
+<code>docs/EXP_009_TWO_WINDOW.md</code>. Exp010 uses the saved
+<code>04D_experiments.ipynb</code> table and
+<code>time_mask_v6.json</code>; report preparation did not constitute a
+new complete exp010 artifact audit. Supporting report extraction is kept
+outside Git in <code>_local_only/report_build/</code>; it does not
+replace scientific inputs.</p>
+<h2 id="identifiers-for-locating-the-correct-versions">Identifiers for
+locating the correct versions</h2>
+<table>
+<caption>SHA256 identifiers for three key manifests. These establish
+identity, not performance.</caption>
+<thead>
+<tr>
+<th style="text-align: left;">Artifact</th>
+<th style="text-align: left;">SHA256</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Core metadata</td>
+<td
+style="text-align: left;"><code>e72974da9a4e1a419bb459363be37ff91fdfdd6e65ff9a32582e9de13e786614</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Frozen split</td>
+<td
+style="text-align: left;"><code>3e40928622dcea26e723540cfb493a35fd1d78393bf5531810583eae7966e0c4</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Example Grid v2</td>
+<td
+style="text-align: left;"><code>36881d79d33cd42521aa24004236022dc25b4927f65ae0246a76832835206234</code></td>
+</tr>
+</tbody>
+</table>
+<p>Exp007 records commit
+<code>87e1c0703a17b39be2b314cfe59fffd26285aab5</code>; exp008 records
+<code>8ab76842d12758984909ea03514897728c2c2e7e</code>. The reference MFE
+revision is <code>9b0ceb2b5d22658d3193a5b77dc773cfc8d4cab0</code>. These
+historical identifiers document provenance; they are not assumed to
+equal current HEAD or remain available under the same SHA after a
+history rewrite.</p>
+<h2 id="retrieving-results-without-training">Retrieving results without
+training</h2>
+<p>Colab results reside under
+<code>/content/drive/MyDrive/EdgeAI/experiments/&lt;experiment_id&gt;/</code>.
+Select <code>EXPERIMENT_NAME</code> in the 04C training-review section
+for a suite or targeted run, and <code>DIAGNOSTIC_NAME</code> in the
+exp009 section for the diagnostic. These selectors are not
+interchangeable. Experiment configurations, metadata, results,
+checkpoints, and logs are the primary records; notebook displays may be
+stale after a name change.</p>
+<p>Code changes do not erase earlier results. New training uses a new ID
+and preserves effective configuration, commit, runtime, input hashes,
+and references to distinguish configuration effects from runtime
+differences. If a directory is missing or status is FAILED, inspect
+metadata and logs before retrying; do not reuse the ID or regenerate
+caches automatically. Report preparation did not upload, push, or modify
+Drive directories.</p>
+<div class="thebibliography">
+<p><span>9</span> I. Kiskin et al. <em>HumBugDB: A Large-scale Acoustic
+Mosquito Dataset</em>. NeurIPS Datasets and Benchmarks, 2021. <a
+href="https://arxiv.org/abs/2110.07607"
+class="uri">https://arxiv.org/abs/2110.07607</a>. HumBug Project.
+<em>HumBugDB: a large-scale acoustic mosquito dataset</em>. Zenodo
+dataset record. <a href="https://zenodo.org/records/4904800"
+class="uri">https://zenodo.org/records/4904800</a>. The project uses
+locally pinned metadata release 0.0.1; the record DOI does not replace
+version identity. M. Altayeb, M. Zennaro, and M. Rovai. <em>Classifying
+mosquito wingbeat sound using TinyML</em>. GoodIT, 2022, pp. 132–137.
+DOI: <a href="https://doi.org/10.1145/3524458.3547258"
+class="uri">https://doi.org/10.1145/3524458.3547258</a>. Author
+repository: <a
+href="https://github.com/Mjrovai/wingbeat-mosquito-tinyml"
+class="uri">https://github.com/Mjrovai/wingbeat-mosquito-tinyml</a>. Y.
+Zhang, N. Suda, L. Lai, and V. Chandra. <em>Hello Edge: Keyword Spotting
+on Microcontrollers</em>. arXiv:1711.07128, 2017. <a
+href="https://arxiv.org/abs/1711.07128"
+class="uri">https://arxiv.org/abs/1711.07128</a>. S. Choi et al.
+<em>Temporal Convolution for Real-time Keyword Spotting on Mobile
+Devices</em>. Interspeech, 2019. <a
+href="https://arxiv.org/abs/1904.03814"
+class="uri">https://arxiv.org/abs/1904.03814</a>. X. Wei, M. Z. Hossain,
+and K. A. Ahmed. <em>A ResNet attention model for classifying mosquitoes
+from wing-beating sounds</em>. Scientific Reports 12, 10334, 2022. <a
+href="https://doi.org/10.1038/s41598-022-14372-x"
+class="uri">https://doi.org/10.1038/s41598-022-14372-x</a>. D. S. Park
+et al. <em>SpecAugment: A Simple Data Augmentation Method for Automatic
+Speech Recognition</em>. Interspeech, 2019. <a
+href="https://arxiv.org/abs/1904.08779"
+class="uri">https://arxiv.org/abs/1904.08779</a>. T.-D. Dinh, M.-L. Vo,
+C. T. Nguyen, and B.-H. Vo. <em>Synthetic Swarm Mosquito Dataset for
+Acoustic Classification: A Proof of Concept</em>. arXiv:2512.12365,
+2025. <a href="https://arxiv.org/abs/2512.12365"
+class="uri">https://arxiv.org/abs/2512.12365</a>. VGU Edge AI team.
+Project records: accepted manifests/audits, protocols v2–v6,
+configurations, notebook outputs, and exp001–exp010 artifacts; reviewed
+for the report dated October 3, 2026. Logical paths and verification
+coverage are documented in the appendices. These records supply the
+experimental results reported here.</p>
+</div>
+</body>
+</html>
